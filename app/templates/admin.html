@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Admin · League Coach{% endblock %}
+{% block content %}
+<div class="page-h"><div><span class="label">Administration</span><h1>Admin</h1></div></div>
+<div class="cols">
+  <section class="panel">
+    <h2>Données de matchups</h2>
+    <div class="tbl"><table><tbody>
+      <tr><td class="muted">Patch</td><td>{{ mu.patch }} ({{ mu.tier }})</td></tr>
+      <tr><td class="muted">Collecte</td><td>{{ mu.collected }}</td></tr>
+      <tr><td class="muted">Champions</td><td>{{ mu.champions|length }}</td></tr>
+      {% for key, src in mu.sources.items() %}
+      <tr><td class="muted">Source</td><td><a href="{{ src.url }}" target="_blank" rel="noopener">{{ src.label }}</a> · {{ src.matchups.values()|map('length')|sum }} matchups{% if src.note %}<br><span class="muted" style="font-size:.85rem">{{ src.note }}</span>{% endif %}</td></tr>
+      {% endfor %}
+    </tbody></table></div>
+    <form method="post" action="/admin/matchups" enctype="multipart/form-data" class="inline">
+      <label class="field" style="flex:1"><span>Remplacer par un nouveau fichier matchups.json</span><input type="file" name="file" id="file" accept="application/json,.json" required></label>
+      <button class="btn" type="submit">Importer</button>
+    </form>
+    <p class="muted" style="font-size:.85rem">À refaire à chaque patch. Le fichier est conservé dans le volume de données.</p>
+  </section>
+  <section class="panel">
+    <div class="panel-h"><h2>Import Riot</h2><span class="pill {{ 'good' if RIOT else 'bad' }}">{{ 'Clé API chargée' if RIOT else 'Pas de clé API' }}</span></div>
+    <p class="muted small">{% if RIOT %}Synchronisation automatique toutes les {{ SYNC_MINUTES }} min. L'état de chaque compte est dans Comptes.{% else %}Ajoute RIOT_API_KEY dans le .env du serveur puis relance avec docker compose up -d.{% endif %}</p>
+    <div class="panel-h"><h2>Utilisateurs</h2><span class="pill {{ 'good' if signup else 'warn' }}">Inscriptions {{ 'ouvertes' if signup else 'fermées' }}</span></div>
+    <div class="tbl"><table>
+      <thead><tr><th>Identifiant</th><th>Comptes LoL</th><th>Créé le</th><th></th></tr></thead>
+      <tbody>{% for u in users %}
+        <tr><td>{{ u.username }}{% if u.is_admin %} <span class="pill acc">admin</span>{% endif %}</td><td class="n">{{ u.n_accounts }}</td><td class="n">{{ u.created_at[:10] }}</td>
+        <td>{% if u.id != user.id %}<form method="post" action="/admin/users/{{ u.id }}/delete" onsubmit="return confirm('Supprimer {{ u.username }} et toutes ses données ?')"><button class="ghost danger" type="submit">Supprimer</button></form>{% endif %}</td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+    <p class="muted" style="font-size:.85rem">Ouvre ou ferme les inscriptions avec la variable ALLOW_SIGNUP du fichier .env, puis redémarre le conteneur.</p>
+  </section>
+</div>
+{% endblock %}

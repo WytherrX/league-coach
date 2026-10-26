@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, dots, search %}
+{% block title %}Pool · League Coach{% endblock %}
+{% macro comfort_select(c, value, empty_label) %}
+<select name="c_{{ c }}" id="c_{{ c }}" aria-label="Aisance sur {{ champ_name(c) }}">
+  <option value="">{{ empty_label }}</option>
+  {% for lvl in [5, 4, 3, 2, 1] %}<option value="{{ lvl }}" {{ 'selected' if value == lvl }}>{{ lvl }}/5 · {{ COMFORT[lvl] }}</option>{% endfor %}
+</select>
+{% endmacro %}
+{% block content %}
+<div class="page-h">
+  <div><span class="label">{{ account.riot_id }} · jungle</span><h1>Champion pool</h1></div>
+  <span class="dim small">Winrates du patch {{ mu.patch }} ({{ mu.tier }}) : {{ mu.source_list|map(attribute=1)|join(', ') }}</span>
+</div>
+
+<form method="post" action="/pool" class="stack">
+  <section class="panel flush" aria-labelledby="h-pool">
+    <div class="panel-h"><h2 id="h-pool">Ton pool</h2><span class="label">trié par aisance puis parties enregistrées</span></div>
+    {% if pool %}
+    <div class="tbl"><table>
+      <thead><tr><th>Champion</th><th>Aisance</th><th class="n">Parties</th><th class="n">Bilan</th><th class="n">Bonus maîtrise</th><th class="n">Winrate patch</th></tr></thead>
+      <tbody>{% for c, p in pool.items() %}
+        {% set b = mastery_bonus(p) %}
+        {% set wr = stats[c][0] if c in stats else none %}
+        <tr>
+          <td><span class="champ">{{ icon(c, 'lg') }}<span><b>{{ champ_name(c) }}</b><br>{{ dots(p.comfort) }}</span></span></td>
+          <td style="min-width:200px">{{ comfort_select(c, p.comfort, 'Retirer du pool') }}</td>
+          <td class="n">{{ p.games }}</td>
+          <td class="n">{% if p.games %}<b class="{{ wr_class(100 * p.wins / p.games) }}">{{ (100 * p.wins / p.games)|fr(0) }} %</b> <span class="dim">{{ p.wins }}V-{{ p.games - p.wins }}D</span>{% else %}<span class="dim">—</span>{% endif %}</td>
+          <td class="n"><span class="pill {{ 'good' if b > 0 else 'bad' if b < 0 else '' }}">{{ b|pts }}</span></td>
+          <td class="n {{ wr_class(wr) }}">{{ (wr|fr ~ ' %') if wr is not none else '—' }}</td>
+        </tr>{% endfor %}</tbody>
+    </table></div>
+    {% else %}
+    <div class="body"><div class="empty">Ton pool est vide. Choisis tes champions ci-dessous en indiquant ton aisance sur chacun.</div></div>
+    {% endif %}
+    <div class="body">
+      <details>
+        <summary>Comment le bonus de maîtrise est calculé</summary>
+        <div class="cols" style="margin-top:10px">
+          <div class="tbl"><table><thead><tr><th>Aisance</th><th class="n">Bonus</th></tr></thead><tbody>
+            <tr><td>5/5 · Main</td><td class="n">+3 pts</td></tr><tr><td>4/5 · Très à l'aise</td><td class="n">+1,5 pt</td></tr>
+            <tr><td>3/5 · À l'aise</td><td class="n">0</td></tr><tr><td>2/5 · Correct</td><td class="n">−2 pts</td></tr>
+            <tr><td>1/5 · En apprentissage</td><td class="n">−4 pts</td></tr></tbody></table></div>
+          <div class="tbl"><table><thead><tr><th>Parties enregistrées</th><th class="n">Bonus</th></tr></thead><tbody>
+            <tr><td>Moins de 20</td><td class="n">0</td></tr><tr><td>20 à 49</td><td class="n">+0,5 pt</td></tr>
+            <tr><td>50 et plus</td><td class="n">+1 pt</td></tr></tbody></table></div>
+        </div>
+        <p class="muted small" style="margin-top:8px">Le bonus s'ajoute au winrate du matchup sur la page Counters. Le nombre de parties est celui que tu as enregistrées dans <a href="/games">Parties</a> : il ne pénalise jamais, il récompense seulement l'expérience accumulée. Un main à 5/5 avec 50 parties gagne 8 points sur un champion en apprentissage, l'équivalent d'un matchup nettement favorable.</p>
+      </details>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-add">
+    <div class="panel-h">
+      <h2 id="h-add">Ajouter des champions</h2>
+      {{ search('#add-grid') }}
+    </div>
+    <div class="grid" id="add-grid">
+      {% for c in champs if c not in pool %}
+      {% set wr = stats[c][0] if c in stats else none %}
+      <div class="pcard" data-n="{{ champ_name(c) }} {{ c }}">
+        <span class="champ">{{ icon(c, 'lg') }}<span style="min-width:0"><b>{{ champ_name(c) }}</b><br><span class="small {{ wr_class(wr) }}">{{ (wr|fr ~ ' %') if wr is not none else '—' }}</span> <span class="dim small">patch</span></span></span>
+        {{ comfort_select(c, None, 'Pas dans mon pool') }}
+      </div>
+      {% endfor %}
+    </div>
+    <div class="none" id="add-grid-none" hidden>Aucun champion ne correspond.</div>
+  </section>
+  <div style="position:sticky;bottom:12px;display:flex;justify-content:flex-end"><button class="btn" type="submit" style="box-shadow:0 6px 24px rgba(0,0,0,.45)">Enregistrer le pool</button></div>
+</form>
+{% endblock %}

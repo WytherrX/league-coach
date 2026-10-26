@@ -1,0 +1,63 @@
+{% macro icon(c, cls='') -%}
+<img class="ico {{ cls }}" src="{{ champ_icon(c) }}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">
+{%- endmacro %}
+
+{% macro dots(n) -%}
+<span class="dots" role="img" aria-label="Aisance {{ n }} sur 5">{% for i in range(1, 6) %}<i class="{{ 'on' if i <= n }}"></i>{% endfor %}</span>
+{%- endmacro %}
+
+{% macro search(target, label='Rechercher un champion') -%}
+<label class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+<input type="search" placeholder="{{ label }}" aria-label="{{ label }}" data-filter="{{ target }}" autocomplete="off"></label>
+{%- endmacro %}
+
+{% macro match_card(g, delete=False, default_focus=None) %}
+{% set r, rc = kda(g.kills, g.deaths, g.assists) %}
+<article class="match {{ g.result }}" id="g{{ g.id }}">
+  <div class="res"><b>{{ 'Victoire' if g.result == 'W' else 'Défaite' }}</b><span>{{ g.played_on[8:10] }}/{{ g.played_on[5:7] }}/{{ g.played_on[2:4] }}</span>{% if g.lp_change is not none %}<span class="lpd {{ 'up' if g.lp_change >= 0 else 'down' }}">{{ '+' if g.lp_change >= 0 }}{{ g.lp_change|string|replace('-', '−') }} LP</span>{% endif %}</div>
+  <div class="who">{{ icon(g.champ, 'lg') }}<span class="nm">{{ champ_name(g.champ) }}</span></div>
+  <div class="kda">
+    <span class="k">{{ g.kills if g.kills is not none else '–' }} / <span class="d">{{ g.deaths if g.deaths is not none else '–' }}</span> / {{ g.assists if g.assists is not none else '–' }}</span>
+    <span class="r {{ rc }}">{{ ((r|fr(2)) ~ ' KDA') if r is not none else '' }}</span>
+  </div>
+  <div class="st">
+    <span>KP <b>{{ (g.kp ~ ' %') if g.kp is not none else '–' }}</b></span>
+    <span>CS/min <b>{{ (g.cs_min|fr) if g.cs_min is not none else '–' }}</b></span>
+    <span>Morts &lt;15 <b>{{ g.deaths_pre15 if g.deaths_pre15 is not none else '–' }}</b></span>
+    <span>Pinks <b>{{ g.control_wards if g.control_wards is not none else '–' }}</b></span>
+  </div>
+  <div class="vs">{% if g.enemy %}<span>contre</span>{{ icon(g.enemy, 'sm round') }}<span>{{ champ_name(g.enemy) }}</span>{% endif %}</div>
+  <div class="side">
+    {% if delete %}<input type="checkbox" class="pick" name="ids" value="{{ g.id }}" form="bulk" aria-label="Sélectionner la partie du {{ g.played_on }}">{% endif %}
+    {% if g.focus and g.focus_ok is not none %}<span class="pill {{ 'good' if g.focus_ok else 'bad' }}" title="{{ DRILL_INDEX[g.focus][1] if g.focus in DRILL_INDEX else g.focus }}">Objectif {{ 'tenu' if g.focus_ok else 'raté' }}</span>{% endif %}
+    {% if delete %}<form method="post" action="/games/{{ g.id }}/delete" onsubmit="return confirm('Supprimer cette partie ?')"><button class="x" type="submit" aria-label="Supprimer la partie du {{ g.played_on }}" title="Supprimer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button></form>{% endif %}
+  </div>
+  {% if delete and g.reviewed == 0 %}
+  <form class="review" method="post" action="/games/{{ g.id }}/review">
+    <span class="pill warn">À compléter</span>
+    <select name="focus" aria-label="Objectif travaillé">
+      <option value="">Aucun objectif</option>
+      {% for cat, ds in DRILLS.items() %}{% for d in ds %}<option value="{{ d[0] }}" {{ 'selected' if d[0] == default_focus }}>{{ d[1] }}</option>{% endfor %}{% endfor %}
+    </select>
+    <div class="radio" role="radiogroup" aria-label="Objectif tenu">
+      <label><input type="radio" name="focus_ok" value="1"><span class="n">Tenu</span></label>
+      <label><input type="radio" name="focus_ok" value="0"><span class="n">Raté</span></label>
+    </div>
+    <input type="text" name="lesson" maxlength="500" placeholder="Leçon : une erreur, une règle" aria-label="Leçon">
+    <button class="btn" type="submit">Valider</button>
+  </form>
+  {% elif delete and (g.lesson or g.focus) %}
+  <div class="lesson">{% if g.focus %}<b>{{ DRILL_INDEX[g.focus][1] if g.focus in DRILL_INDEX else g.focus }}</b>{% if g.lesson %} · {% endif %}{% endif %}{{ g.lesson or '' }}</div>
+  {% endif %}
+</article>
+{% endmacro %}
+
+{% macro match_compact(g) %}
+{% set r, rc = kda(g.kills, g.deaths, g.assists) %}
+<article class="match compact {{ g.result }}">
+  {{ icon(g.champ) }}
+  <div style="min-width:0"><b class="small">{{ champ_name(g.champ) }}</b>{% if g.enemy %} <span class="muted small">vs {{ champ_name(g.enemy) }}</span>{% endif %}</div>
+  <span class="num small"><b>{{ g.kills if g.kills is not none else '–' }}/<span style="color:var(--loss)">{{ g.deaths if g.deaths is not none else '–' }}</span>/{{ g.assists if g.assists is not none else '–' }}</b></span>
+  <span class="small {{ rc }}" style="min-width:58px;text-align:right;font-weight:700">{% if g.lp_change is not none %}<span class="lpd {{ 'up' if g.lp_change >= 0 else 'down' }}">{{ '+' if g.lp_change >= 0 }}{{ g.lp_change|string|replace('-', '−') }} LP</span>{% else %}{{ ((r|fr(2)) ~ ' KDA') if r is not none else '' }}{% endif %}</span>
+</article>
+{% endmacro %}

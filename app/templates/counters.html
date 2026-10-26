@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, dots, search %}
+{% block title %}Counters · League Coach{% endblock %}
+{% block content %}
+{% set srcs = mu.source_list|map(attribute=1)|join(' · ') %}
+
+{% if not enemy %}
+<div class="page-h">
+  <div><span class="label">Patch {{ mu.patch }} · {{ mu.tier }} · {{ srcs }}</span><h1>Counters</h1></div>
+</div>
+
+{% if bans %}
+<section class="panel">
+  <div class="panel-h"><h2>Bans conseillés pour ton pool</h2><span class="dim small">winrate moyen de ton pool contre ce jungler, pondéré par ton aisance</span></div>
+  <div class="chips">{% for e, wr in bans %}<a class="chip" href="/counters?enemy={{ e }}">{{ icon(e) }}{{ champ_name(e) }} <span class="{{ wr_class(wr) }} num">{{ (wr)|fr }} %</span></a>{% endfor %}</div>
+</section>
+{% endif %}
+
+<section class="panel">
+  <div class="panel-h">
+    <h2>Quel jungler en face ?</h2>
+    {{ search('#enemy-grid') }}
+  </div>
+  <div class="tiles" id="enemy-grid">
+    {% for c in champs %}<a class="ccard" data-n="{{ champ_name(c) }} {{ c }}" href="/counters?enemy={{ c }}"><img src="{{ champ_icon(c) }}" alt="" loading="lazy" onerror="this.style.visibility='hidden'"><span>{{ champ_name(c) }}</span></a>{% endfor %}
+  </div>
+  <div class="none" id="enemy-grid-none" hidden>Aucun jungler ne correspond.</div>
+</section>
+
+{% else %}
+{% set top = picks[0] if picks else none %}
+<section class="versus">
+  <div class="who">
+    {{ icon(enemy, 'xl') }}
+    <div><span class="label">Jungler adverse</span><div class="big">{{ champ_name(enemy) }}</div>
+      {% if enemy in early %}<span class="pill warn">Jungler early agressif</span>{% else %}<span class="pill">Jungler de tempo / scaling</span>{% endif %}</div>
+  </div>
+  {% if top %}
+  <span class="vs">VS</span>
+  <div class="who">
+    {{ icon(top.champ, 'xl') }}
+    <div><span class="label">Prends</span><div class="big">{{ champ_name(top.champ) }}</div>
+      <span class="muted small">{{ dots(top.comfort) }} aisance {{ top.comfort }}/5{% if top.my_games %} · {{ top.my_wins }}V-{{ top.my_games - top.my_wins }}D pour toi{% endif %}</span></div>
+  </div>
+  <div class="score"><span class="label">Winrate du matchup</span><div class="v {{ wr_class(top.wr) }}">{{ (top.wr)|fr }} %</div><span class="muted small">{{ top.per|length }} source{{ 's' if top.per|length > 1 }} · {{ top.agreement }}</span></div>
+  {% endif %}
+  <a class="btn sec" href="/counters" style="{{ '' if top else 'margin-left:auto' }}">Changer d'adversaire</a>
+</section>
+
+<section class="panel flush">
+  <div class="panel-h"><h2>Ton pool contre {{ champ_name(enemy) }}</h2><span class="label">Patch {{ mu.patch }} · {{ mu.tier }}</span></div>
+  {% if not pool %}
+  <div class="body"><div class="hint">Ajoute ton champion pool dans <a href="/pool">Pool</a> pour voir quel champion prendre parmi les tiens.</div></div>
+  {% elif picks %}
+  <div class="tbl"><table>
+    <thead><tr><th>#</th><th>Champion</th><th>Aisance</th>{% for key, label in mu.source_list %}<th class="n">{{ label }}</th>{% endfor %}<th class="n">Moyenne</th><th class="n">Ton bilan</th><th class="n">Maîtrise</th><th class="n">Score</th><th>Verdict</th></tr></thead>
+    <tbody>{% for p in picks %}
+      {% set verdict = 'Prends' if loop.first else ('Jouable' if p.score >= 49 else 'Évite') %}
+      <tr class="{{ 'top' if loop.first }}">
+        <td><span class="rk">{{ loop.index }}</span></td>
+        <td><span class="champ">{{ icon(p.champ) }}<b>{{ champ_name(p.champ) }}</b></span></td>
+        <td>{{ dots(p.comfort) }}<div class="dim small">{{ p.pool_games }} partie{{ 's' if p.pool_games > 1 }}</div></td>
+        {% for key, label in mu.source_list %}<td class="n {{ wr_class(p.per[key]) if key in p.per }}">{{ ((p.per[key])|fr ~ ' %') if key in p.per else '—' }}</td>{% endfor %}
+        <td class="n"><b class="{{ wr_class(p.wr) }}">{{ (p.wr)|fr }} %</b><div class="dim small">{{ p.agreement }}</div></td>
+        <td class="n">{% if p.my_games %}<span style="color:var(--win)">{{ p.my_wins }}V</span> <span style="color:var(--loss)">{{ p.my_games - p.my_wins }}D</span>{% else %}<span class="dim">—</span>{% endif %}</td>
+        <td class="n"><span class="pill {{ 'good' if p.bonus > 0 else 'bad' if p.bonus < 0 else '' }}">{{ p.bonus|pts }}</span></td>
+        <td class="n"><b>{{ (p.score)|fr }}</b></td>
+        <td><span class="pill {{ 'great' if verdict == 'Prends' else 'acc' if verdict == 'Jouable' else 'bad' }}">{{ verdict }}</span></td>
+      </tr>{% endfor %}</tbody>
+  </table></div>
+  <div class="body"><p class="dim small">Moyenne des sources qui ont au moins 100 parties sur le matchup ; « sources d'accord » : moins de 3 points d'écart. Score = moyenne ajustée par ton propre bilan sur le matchup, plus ton bonus de maîtrise (aisance et parties enregistrées, voir <a href="/pool">Pool</a>).</p></div>
+  {% else %}
+  <div class="body"><div class="empty">Pas de données de matchup pour ton pool contre {{ champ_name(enemy) }}.</div></div>
+  {% endif %}
+</section>
+
+<div class="cols">
+  <section class="panel flush">
+    <div class="panel-h"><h2>Meilleurs counters hors de ton pool</h2></div>
+    {% if best %}
+    <div class="tbl"><table>
+      <thead><tr><th>#</th><th>Champion</th><th class="n">Moyenne</th><th class="n">Pire source</th><th>Accord</th></tr></thead>
+      <tbody>{% for b in best %}<tr><td><span class="rk">{{ loop.index }}</span></td><td><span class="champ">{{ icon(b.champ) }}<b>{{ champ_name(b.champ) }}</b></span></td><td class="n"><b class="{{ wr_class(b.wr) }}">{{ (b.wr)|fr }} %</b></td><td class="n {{ wr_class(b.worst) }}">{{ (b.worst)|fr }} %</td><td class="muted small">{{ b.agreement }}</td></tr>{% endfor %}</tbody>
+    </table></div>
+    <div class="body"><p class="dim small">Au moins 2 sources et 200 parties, classés sur la source la plus pessimiste. Utile pour choisir un futur champion situationnel.</p></div>
+    {% else %}<div class="body"><div class="empty">Pas assez de données.</div></div>{% endif %}
+  </section>
+  <section class="panel">
+    <h2>Plan de début de partie</h2>
+    {% if enemy in early %}
+    <ul>
+      <li>Pas de duel avant ton premier objet.</li>
+      <li>Démarre du côté où tes lanes ont la priorité.</li>
+      <li>Ward ton buff ou ta deuxième entrée vers 3:00.</li>
+      <li>S'il gank une lane, contre-gank ou prends ses camps de l'autre côté.</li>
+    </ul>
+    {% else %}
+    <ul>
+      <li>Repère son côté de départ au leash et anticipe son premier gank.</li>
+      <li>S'il veut farmer et scaler, force-le à jouer autour de tes ganks.</li>
+      <li>Invade son deuxième camp quand tes lanes du côté ont la priorité.</li>
+      <li>Prépare le premier objectif 90 secondes avant son apparition.</li>
+    </ul>
+    {% endif %}
+  </section>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, match_compact %}
+{% block title %}Tableau de bord · League Coach{% endblock %}
+{% macro fmt(row) -%}
+{%- if row.value is none -%}—{%- elif row.unit == '%' -%}{{ (row.value)|fr(0) }} %{%- else -%}{{ (row.value)|fr }}{%- endif -%}
+{%- endmacro %}
+{% macro target(r) -%}{{ ('≥ ' if r.higher else '≤ ') ~ (r.target|string).replace('.', ',') }}{{ ' %' if r.unit == '%' }}{%- endmacro %}
+{% block content %}
+{% set slug = account.riot_id.replace('#','-') %}
+{% set name, _, tag = account.riot_id.partition('#') %}
+
+<header class="profile">
+  <div class="pf-icon">
+    {% if main_champ %}<img src="{{ champ_icon(main_champ) }}" alt="" onerror="this.style.visibility='hidden'">{% else %}<span class="ph" style="display:block"></span>{% endif %}
+    <span class="role">JUNGLE</span>
+  </div>
+  <div class="pf-main">
+    <div class="pf-name">{{ name }} <span class="tag">#{{ tag }}</span></div>
+    <div class="pf-links">
+      <span>{{ account.region|upper }}</span>
+      <a href="https://op.gg/lol/summoners/{{ account.region }}/{{ slug }}" target="_blank" rel="noopener">op.gg ↗</a>
+      <a href="https://dpm.lol/{{ slug }}" target="_blank" rel="noopener">dpm.lol ↗</a>
+      <a href="https://porofessor.gg/fr/live/{{ account.region }}/{{ slug }}" target="_blank" rel="noopener">Porofessor ↗</a>
+    </div>
+  </div>
+  <div class="seg" role="group" aria-label="Période analysée">
+    {% for k in [10, 20, 50] %}<a href="/?n={{ k }}" class="{{ 'on' if n == k }}">{{ k }}<span class="hide-sm"> dernières</span></a>{% endfor %}
+  </div>
+</header>
+
+<section class="panel lp-panel" aria-labelledby="h-lp">
+  <div class="panel-h">
+    <h2 id="h-lp">Évolution des LP</h2>
+    {% if lp %}<div class="lp-stats">
+      <span><span class="label">Sur {{ lp.games }} parties</span><b class="{{ 'wr-good' if lp.net > 0 else 'wr-bad' if lp.net < 0 else '' }}">{{ '+' if lp.net > 0 }}{{ lp.net|string|replace('-', '−') }} LP</b></span>
+      <span><span class="label">Bilan</span><b><span style="color:var(--win)">{{ lp.wins }}V</span> <span style="color:var(--loss)">{{ lp.losses }}D</span></b></span>
+      <span><span class="label">Pic</span><b class="{{ tier_class(lp.peak.rank_div) }}"><span class="tier-txt">{{ rank_label(lp.peak.rank_div, lp.peak.rank_lp) }}</span></b></span>
+      <span><span class="label">Actuel</span><b class="{{ tier_class(lp.last.rank_div) }}"><span class="tier-txt">{{ rank_label(lp.last.rank_div, lp.last.rank_lp) }}</span></b></span>
+    </div>{% endif %}
+  </div>
+  {% if lp %}<div class="lp-wrap">{{ lp.svg|safe }}</div>
+  {% else %}<div class="empty">{% if RIOT %}La courbe apparaît après deux parties synchronisées : le rang est relevé après chaque partie classée.{% else %}Indique ton rang après tes parties dans <a href="/games">Parties</a> pour tracer la courbe.{% endif %}</div>{% endif %}
+</section>
+
+{% if to_review %}
+<div class="hint"><b>{{ to_review }} partie{{ 's' if to_review > 1 }} importée{{ 's' if to_review > 1 }} à compléter</b> : indique si tu as tenu ton objectif et note une leçon dans <a href="/games">Parties</a>.</div>
+{% endif %}
+{% if not pool %}
+<div class="hint">Ton champion pool est vide : <a href="/pool">choisis tes champions</a> pour obtenir des counters et des bans adaptés.</div>
+{% endif %}
+
+<div class="layout">
+  <aside class="stack">
+    <section class="panel">
+      <span class="label">Classé solo/duo</span>
+      <div class="rankcard">
+        <span class="emblem lg {{ tier_class(account.rank_div) }}">{{ account.rank_div or '–' }}</span>
+        <div>
+          <div class="big {{ tier_class(account.rank_div) }}"><span class="tier-txt">{{ rank_label(account.rank_div) if account.rank_div else 'Non classé' }}</span></div>
+          <div class="muted">{{ (account.rank_lp ~ ' LP') if account.rank_lp is not none else '' }}</div>
+          {% if account.goal_div %}<div class="small" style="margin-top:2px">Objectif <b class="{{ tier_class(account.goal_div) }}"><span class="tier-txt">{{ rank_label(account.goal_div) }}</span></b></div>{% endif %}
+        </div>
+      </div>
+      {% if metrics.games %}
+      <div class="wl-txt"><span><b style="color:var(--win)">{{ wins }}V</b> <b style="color:var(--loss)">{{ metrics.games - wins }}D</b></span><b class="{{ wr_class(metrics.winrate) }}">{{ (metrics.winrate)|fr(0) }} %</b></div>
+      <div class="wl" aria-hidden="true"><i style="width:{{ metrics.winrate }}%"></i></div>
+      {% endif %}
+    </section>
+
+    <section class="panel flush">
+      <div class="panel-h"><h2>Champions joués</h2><span class="label">{{ n }} dernières</span></div>
+      <div class="body">
+      {% for s in champ_stats %}
+        {% set r, rc = kda(s.k, s.d, s.a) if s.kn else (none, '') %}
+        <div class="crow">
+          {{ icon(s.champ) }}
+          <div style="min-width:0"><div class="nm">{{ champ_name(s.champ) }}</div>
+            <div class="sub">{% if s.kn %}<b class="{{ rc }}">{{ r|fr(2) }}</b> KDA · {{ (s.k / s.kn)|fr }} / {{ (s.d / s.kn)|fr }} / {{ (s.a / s.kn)|fr }}{% else %}KDA non saisi{% endif %}</div></div>
+          <div class="rt"><b class="{{ wr_class(100 * s.w / s.n) }}">{{ (100 * s.w / s.n)|fr(0) }} %</b><span class="muted">{{ s.n }} partie{{ 's' if s.n > 1 }}</span></div>
+        </div>
+      {% else %}
+        <div class="none">Aucune partie sur la période.</div>
+      {% endfor %}
+      </div>
+    </section>
+
+    {% if hard %}
+    <section class="panel">
+      <h2>Matchups difficiles pour toi</h2>
+      <div class="chips">{% for e, n_, w in hard %}<a class="chip" href="/counters?enemy={{ e }}">{{ icon(e) }}{{ champ_name(e) }} <span class="wr-bad num">{{ w }}V-{{ n_ - w }}D</span></a>{% endfor %}</div>
+    </section>
+    {% endif %}
+
+    <section class="panel">
+      <div class="panel-h"><h2>Draft rapide</h2></div>
+      <form method="get" action="/counters" class="inline">
+        <label class="field" style="flex:1;min-width:150px"><span>Jungler adverse</span>
+          <select name="enemy" id="q-enemy">{% for c in all_champs %}<option value="{{ c }}">{{ champ_name(c) }}</option>{% endfor %}</select></label>
+        <button class="btn" type="submit">Counter</button>
+      </form>
+      {% if bans %}
+      <div class="stack" style="gap:6px"><span class="label">Bans conseillés pour ton pool</span>
+        <div class="chips">{% for e, wr in bans %}<a class="chip" href="/counters?enemy={{ e }}">{{ icon(e) }}{{ champ_name(e) }} <span class="{{ wr_class(wr) }} num">{{ (wr)|fr }} %</span></a>{% endfor %}</div>
+      </div>
+      {% endif %}
+    </section>
+  </aside>
+
+  <div class="stack">
+    <section class="focus" aria-labelledby="h-focus">
+      <span class="label" id="h-focus">Objectif de ta prochaine partie</span>
+      <span class="ft">{{ focus.title }}</span>
+      <p class="muted">{% if focus.reason %}Ton point faible n° 1 : <b style="color:var(--ink)">{{ focus.reason|lower }}</b>.{% else %}Tes indicateurs sont dans les cibles : travaille la fin de partie.{% endif %}
+         {% if focus.tries %}Tenu {{ focus.ok }} fois sur {{ focus.tries }}.{% else %}Jamais travaillé jusqu'ici.{% endif %}</p>
+      <ol>{% for s in focus.steps %}<li>{{ s }}</li>{% endfor %}</ol>
+      <p class="muted small">Après la partie, indique dans <a href="/games">Parties</a> si tu as tenu cet objectif.</p>
+    </section>
+
+    {% if metrics.games %}
+    {% set kr, krc = kda(totals.k, totals.d, totals.a) if totals.kn else (none, '') %}
+    <div class="kpis">
+      <div class="kpi acc"><span class="label">Winrate</span><span class="v {{ wr_class(metrics.winrate) }}">{{ (metrics.winrate)|fr(0) }} %</span><span class="t">{{ metrics.games }} partie{{ 's' if metrics.games > 1 }}</span></div>
+      <div class="kpi"><span class="label">KDA moyen</span><span class="v {{ krc }}">{{ (kr|fr(2)) if kr is not none else '—' }}</span><span class="t">{% if totals.kn %}{{ (totals.k / totals.kn)|fr }} / {{ (totals.d / totals.kn)|fr }} / {{ (totals.a / totals.kn)|fr }}{% else %}non saisi{% endif %}</span></div>
+      <div class="kpi {{ 'good' if streak[1] == 'W' else 'bad' }}"><span class="label">Série en cours</span><span class="v" style="color:var(--{{ 'win' if streak[1] == 'W' else 'loss' }})">{{ streak[0] }} {{ 'V' if streak[1] == 'W' else 'D' }}</span><span class="t">{{ 'victoire' if streak[1] == 'W' else 'défaite' }}{{ 's' if streak[0] > 1 }} d'affilée</span></div>
+      <div class="kpi"><span class="label">Objectifs tenus</span><span class="v">{{ ((metrics.focus_rate)|fr(0) ~ ' %') if metrics.focus_rate is not none else '—' }}</span><span class="t">parties avec un objectif noté</span></div>
+    </div>
+    {% endif %}
+
+    <section class="panel" aria-labelledby="h-weak">
+      <div class="panel-h"><h2 id="h-weak">Points faibles</h2><span class="label">{{ metrics.games }} partie{{ 's' if metrics.games > 1 }}</span></div>
+      {% if metrics.games %}
+      <div class="weak">
+        {% for r in weak %}
+        {% set pct = 0 if r.value is none else ((r.value / r.target) if r.higher else (r.target / r.value if r.value else 1)) %}
+        <div class="wrow">
+          <span>{{ r.label }}</span>
+          <span class="bar" aria-hidden="true"><i class="{{ r.status }}" style="width:{{ [pct, 1]|min * 100 }}%"></i></span>
+          <span class="val"><b>{{ fmt(r) }}</b> <span class="dim small">{{ target(r) }}</span>
+            {% if r.status %}<span class="pill {{ r.status }}">{{ {'good':'OK','warn':'Proche','bad':'À travailler'}[r.status] }}</span>{% endif %}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty">Enregistre tes premières parties dans <a href="/games">Parties</a> : tes points faibles apparaîtront ici.</div>
+      {% endif %}
+    </section>
+
+    {% if metrics.games %}
+    <section class="charts two" aria-label="Courbes">
+      <div class="panel"><div class="panel-h"><h3>Participation aux kills</h3><span class="dim small">cible 60 %</span></div>{{ charts.kp|safe or '<div class="empty">Pas assez de données.</div>'|safe }}</div>
+      <div class="panel"><div class="panel-h"><h3>Morts par partie</h3><span class="dim small">cible 4,5</span></div>{{ charts.deaths|safe or '<div class="empty">Pas assez de données.</div>'|safe }}</div>
+    </section>
+
+    <div class="cols">
+      <section class="panel flush" aria-labelledby="h-last">
+        <div class="panel-h"><h2 id="h-last">Dernières parties</h2><a href="/games" class="small">Tout voir</a></div>
+        <div class="body"><div class="matches">{% for g in games %}{{ match_compact(g) }}{% endfor %}</div></div>
+      </section>
+      <section class="panel flush" aria-labelledby="h-drills">
+        <div class="panel-h"><h2 id="h-drills">Suivi des objectifs</h2></div>
+        {% if drills %}
+        <div class="tbl"><table>
+          <thead><tr><th>Objectif</th><th class="n">Parties</th><th class="n">Tenu</th></tr></thead>
+          <tbody>{% for d, (t, ok) in drills|dictsort(by='value', reverse=true) %}
+            {% set rate = 100 * ok / t %}
+            <tr><td>{{ DRILL_INDEX[d][1] if d in DRILL_INDEX else d }}</td><td class="n">{{ t }}</td><td class="n"><b class="{{ 'wr-great' if rate >= 70 else 'wr-good' if rate >= 50 else 'wr-bad' }}">{{ rate|fr(0) }} %</b> <span class="dim">{{ ok }}/{{ t }}</span></td></tr>
+          {% endfor %}</tbody>
+        </table></div>
+        {% else %}<div class="body"><div class="empty">Aucun objectif noté pour l'instant.</div></div>{% endif %}
+      </section>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

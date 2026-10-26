@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Connexion · League Coach{% endblock %}
+{% block content %}
+<div class="auth">
+  <div class="brand"><span class="brand-mark">LC</span>League Coach</div>
+  <p class="muted" style="text-align:center">Suis tes parties, repère tes points faibles et choisis le bon counter.</p>
+  {% if error %}<div class="flash err" role="alert">{{ error }}</div>{% endif %}
+  <form method="post" action="/login" class="panel">
+    <h1 style="font-size:1.15rem">Connexion</h1>
+    <label class="field"><span>Identifiant</span><input type="text" name="username" id="username" autocomplete="username" required autofocus></label>
+    <label class="field"><span>Mot de passe</span><input type="password" name="password" id="password" autocomplete="current-password" required></label>
+    <button class="btn" type="submit" style="justify-content:center">Se connecter</button>
+  </form>
+  {% if signup %}<p class="muted" style="text-align:center">Pas encore de compte ? <a href="/register">Créer un compte</a></p>{% endif %}
+</div>
+{% endblock %}

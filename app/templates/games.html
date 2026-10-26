@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% from "_macros.html" import match_card %}
+{% block title %}Parties · League Coach{% endblock %}
+{% macro champ_options(selected) %}
+  {% if pool_sorted %}<optgroup label="Ton pool">{% for c in pool_sorted %}<option value="{{ c }}" {{ 'selected' if c == selected }}>{{ champ_name(c) }}</option>{% endfor %}</optgroup>{% endif %}
+  <optgroup label="Tous les junglers">{% for c in champs %}{% if c not in pool_sorted %}<option value="{{ c }}">{{ champ_name(c) }}</option>{% endif %}{% endfor %}</optgroup>
+{% endmacro %}
+{% block content %}
+{% set wins = games|selectattr('result', 'equalto', 'W')|list|length %}
+<div class="page-h">
+  <div><span class="label">{{ account.riot_id }}</span><h1>Parties</h1></div>
+  {% if games %}<span class="muted"><b style="color:var(--win)">{{ wins }}V</b> <b style="color:var(--loss)">{{ games|length - wins }}D</b> · <b class="{{ wr_class(100 * wins / games|length) }}">{{ (100 * wins / games|length)|fr(0) }} %</b></span>{% endif %}
+</div>
+
+{% if not RIOT %}
+<section class="panel syncbar">
+  <span class="dot-live err"></span><span><b>Import automatique désactivé :</b> <span class="muted">l'appli n'a pas trouvé de clé API Riot. Ajoute <code>RIOT_API_KEY=…</code> dans le fichier <code>.env</code> du serveur, puis relance avec <code>docker compose up -d</code>.</span></span>
+</section>
+{% endif %}
+{% if RIOT %}
+<section class="panel syncbar">
+  {% if syncing %}<span class="dot-live run"></span><span><b>Synchronisation en cours…</b> <span class="muted">les parties arrivent au fil de l'eau.</span></span>
+  {% elif account.sync_error %}<span class="dot-live err"></span><span><b>Synchronisation impossible :</b> <span class="muted">{{ account.sync_error }}</span></span>
+  {% else %}<span class="dot-live"></span><span><b>Synchronisé avec Riot {{ account.synced_at|ago }}</b> <span class="muted">· {{ account.sync_added or 0 }} nouvelle{{ 's' if (account.sync_added or 0) > 1 }} partie{{ 's' if (account.sync_added or 0) > 1 }} · automatique toutes les {{ SYNC_MINUTES }} min</span></span>{% endif %}
+  <form method="post" action="/accounts/{{ account.id }}/sync" style="margin-left:auto"><input type="hidden" name="next" value="/games"><button class="btn sec" type="submit" {{ 'disabled' if syncing }}>Synchroniser</button></form>
+</section>
+{% endif %}
+
+<{{ 'details' if RIOT else 'section' }} class="panel">
+  {% if RIOT %}<summary><b style="color:var(--ink)">Saisie manuelle</b> · pour une partie que Riot n'a pas encore renvoyée</summary>
+  {% else %}<div class="panel-h"><h2>Ajouter une partie</h2><span class="muted small">Les champs vides sont ignorés dans les statistiques.</span></div>{% endif %}
+  <form method="post" action="/games" class="form" {{ 'style=margin-top:12px' if RIOT }}>
+    <label class="field"><span>Date</span><input type="date" name="played_on" id="played_on" value="{{ today }}" required></label>
+    <label class="field"><span>Ton champion</span><select name="champ" id="champ">{{ champ_options(pool_sorted[0] if pool_sorted else None) }}</select></label>
+    <label class="field s2"><span>Jungler adverse</span><select name="enemy" id="enemy"><option value="">—</option>{% for c in champs %}<option value="{{ c }}">{{ champ_name(c) }}</option>{% endfor %}</select></label>
+    <div class="field s2"><span>Résultat</span>
+      <div class="radio" role="radiogroup" aria-label="Résultat">
+        <label><input type="radio" name="result" value="W" id="res_w" checked><span class="w">Victoire</span></label>
+        <label><input type="radio" name="result" value="L" id="res_l"><span class="l">Défaite</span></label>
+      </div></div>
+    <div class="field s2"><span>K / D / A</span>
+      <div class="kda-in"><input type="number" name="kills" id="kills" min="0" inputmode="numeric" aria-label="Kills"><span>/</span><input type="number" name="deaths" id="deaths" min="0" inputmode="numeric" aria-label="Morts" required><span>/</span><input type="number" name="assists" id="assists" min="0" inputmode="numeric" aria-label="Assists"></div></div>
+    <label class="field"><span>Morts avant 15 min</span><input type="number" name="deaths_pre15" id="deaths_pre15" min="0" inputmode="numeric"></label>
+    <label class="field"><span>Participation (%)</span><input type="number" name="kp" id="kp" min="0" max="100" inputmode="numeric"></label>
+    <label class="field"><span>CS / min</span><input type="number" name="cs_min" id="cs_min" min="0" max="15" step="0.1" inputmode="decimal"></label>
+    <label class="field"><span>Control wards</span><input type="number" name="control_wards" id="control_wards" min="0" inputmode="numeric"></label>
+    <label class="field s2"><span>Objectifs perdus sans combat</span><input type="number" name="obj_lost_free" id="obj_lost_free" min="0" inputmode="numeric" placeholder="Dragons, grubs, Baron cédés sans contest"></label>
+
+    <div class="s6 focus" style="padding:14px">
+      <div class="panel-h"><span class="label">Objectif travaillé pendant cette partie</span>{% if focus.reason %}<span class="muted small">Point faible visé : {{ focus.reason }}</span>{% endif %}</div>
+      <div class="form" style="grid-template-columns:minmax(0,2fr) minmax(0,1fr)">
+        <label class="field"><span>Objectif</span>
+          <select name="focus" id="focus">
+            <option value="">Aucun</option>
+            {% for cat, ds in DRILLS.items() %}{% for d in ds %}<option value="{{ d[0] }}" {{ 'selected' if d[0] == focus.id }}>{{ d[1] }}</option>{% endfor %}{% endfor %}
+          </select></label>
+        <div class="field"><span>Objectif tenu ?</span>
+          <div class="radio" role="radiogroup" aria-label="Objectif tenu">
+            <label><input type="radio" name="focus_ok" value="1" id="fo_y"><span class="n">Oui</span></label>
+            <label><input type="radio" name="focus_ok" value="0" id="fo_n"><span class="n">Non</span></label>
+          </div></div>
+      </div>
+    </div>
+
+    <label class="field"><span>Rang après la partie</span><select name="rank_div" id="rank_div"><option value="">—</option>{% for r in RANKS %}<option value="{{ r }}" {{ 'selected' if r == account.rank_div }}>{{ rank_label(r) }}</option>{% endfor %}</select></label>
+    <label class="field"><span>LP</span><input type="number" name="rank_lp" id="rank_lp" min="0" max="2000" inputmode="numeric"></label>
+    <label class="field s6"><span>Leçon (une erreur, une règle)</span><textarea name="lesson" id="lesson" rows="2" maxlength="500" placeholder="Ex. Mort à 4:10 en contestant le scuttle sans mon mid : attendre la priorité."></textarea></label>
+    <div class="s6"><button class="btn" type="submit">Enregistrer la partie</button></div>
+  </form>
+</{{ 'details' if RIOT else 'section' }}>
+
+<section class="stack" style="gap:10px" aria-labelledby="h-hist">
+  <div class="panel-h"><h2 id="h-hist">Historique</h2><span class="label">{% if to_review %}<span class="pill warn">{{ to_review }} à compléter</span> {% endif %}{{ games|length }} partie{{ 's' if games|length > 1 }}</span></div>
+  {% if games %}
+  <form id="bulk" method="post" action="/games/delete" class="bulkbar" onsubmit="return confirm('Supprimer les ' + this.querySelector('[data-count]').textContent + ' parties sélectionnées ?')">
+    <label class="inline" style="align-items:center;gap:8px"><input type="checkbox" id="pick-all" aria-label="Tout sélectionner"> <span class="muted small">Tout sélectionner</span></label>
+    <span class="small"><b data-count>0</b> sélectionnée(s)</span>
+    <button class="btn danger" type="submit" disabled>Supprimer la sélection</button>
+  </form>
+  <div class="matches">{% for g in games %}{{ match_card(g, delete=True, default_focus=focus.id) }}{% endfor %}</div>
+  {% else %}
+  <div class="empty">{% if RIOT %}Aucune partie classée en jungle importée pour l'instant. Lance une synchronisation ou attends quelques minutes.{% else %}Aucune partie pour l'instant. Après ta prochaine partie, remplis le formulaire ci-dessus : ton tableau de bord se calcule à partir d'ici.{% endif %}</div>
+  {% endif %}
+</section>
+{% endblock %}

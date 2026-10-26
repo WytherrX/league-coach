@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#080A12">
+{% if syncing %}<meta http-equiv="refresh" content="5">{% endif %}
+<title>{% block title %}League Coach{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="/static/style.css?v={{ STATIC_V }}">
+</head>
+<body>
+{% if user %}
+{% set path = request.url.path %}
+<header class="topbar">
+  <div class="topbar-in">
+    <a class="brand" href="/"><span class="brand-mark">LC</span>League Coach</a>
+    <nav class="tabs" aria-label="Navigation">
+      <a class="{{ 'on' if path == '/' }}" href="/">Tableau de bord</a>
+      <a class="{{ 'on' if path == '/games' }}" href="/games">Parties</a>
+      <a class="{{ 'on' if path == '/counters' }}" href="/counters">Counters</a>
+      <a class="{{ 'on' if path == '/pool' }}" href="/pool">Pool</a>
+      <a class="{{ 'on' if path == '/accounts' }}" href="/accounts">Comptes</a>
+      {% if user.is_admin %}<a class="{{ 'on' if path == '/admin' }}" href="/admin">Admin</a>{% endif %}
+    </nav>
+    <div class="acct">
+      {% if accounts|length > 1 %}
+      <form method="post" action="/accounts/{{ account.id }}/select">
+        <input type="hidden" name="next" value="{{ path }}">
+        <select aria-label="Compte affiché" onchange="this.form.action='/accounts/'+this.value+'/select';this.form.submit()">
+          {% for a in accounts %}<option value="{{ a.id }}" {{ 'selected' if account and a.id == account.id }}>{{ a.riot_id }}</option>{% endfor %}
+        </select>
+      </form>
+      {% elif account %}<span class="who">{{ account.riot_id }}</span>{% endif %}
+      <form method="post" action="/logout"><button class="icon-btn" type="submit" title="Déconnexion" aria-label="Déconnexion">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="M10 17l-5-5 5-5"/><path d="M5 12h12"/></svg>
+      </button></form>
+    </div>
+  </div>
+</header>
+{% else %}<div class="auth-bg"></div>{% endif %}
+<main class="wrap">
+  {% if flash %}<div class="flash {{ 'err' if flash.kind == 'err' }}" role="status">{{ flash.text }}</div>{% endif %}
+  {% block content %}{% endblock %}
+</main>
+<script>
+/* Filtre des grilles de champions : insensible à la casse, aux accents et à la ponctuation (Kha'Zix → khazix). */
+(function(){
+  const norm = s => (s || '').normalize('NFD').replace(/[^a-z0-9]/gi, '').toLowerCase();
+  document.addEventListener('input', e => {
+    const t = e.target, sel = t.dataset && t.dataset.filter;
+    if (!sel) return;
+    const q = norm(t.value), box = document.querySelector(sel);
+    let shown = 0;
+    box.querySelectorAll('[data-n]').forEach(el => { const ok = norm(el.dataset.n).includes(q); el.hidden = !ok; if (ok) shown++; });
+    const empty = document.querySelector(sel + '-none');
+    if (empty) empty.hidden = shown > 0;
+  });
+  document.addEventListener('keydown', e => {
+    const t = e.target, sel = t.dataset && t.dataset.filter;
+    if (!sel || e.key !== 'Enter') return;
+    e.preventDefault();  /* ne pas soumettre le formulaire du pool */
+    const first = document.querySelector(sel + ' [data-n]:not([hidden])');
+    if (!first) return;
+    if (first.tagName === 'A') first.click(); else { const s = first.querySelector('select'); if (s) s.focus(); }
+  });
+  /* Info-bulles des graphiques (survol à la souris, appui au doigt, focus au clavier) */
+  const tip = document.createElement('div'); tip.className = 'tip'; tip.hidden = true; document.body.appendChild(tip);
+  const show = el => { const r = el.getBoundingClientRect(); tip.textContent = el.dataset.tip; tip.hidden = false;
+    const w = tip.offsetWidth; tip.style.left = Math.min(Math.max(8, r.left + r.width / 2 - w / 2), innerWidth - w - 8) + 'px';
+    tip.style.top = (r.top + scrollY - tip.offsetHeight - 10) + 'px'; };
+  ['mouseover', 'focusin', 'click'].forEach(ev => document.addEventListener(ev, e => { const el = e.target.closest && e.target.closest('[data-tip]'); if (el) show(el); else if (ev !== 'mouseover') tip.hidden = true; }));
+  document.addEventListener('mouseout', e => { if (e.target.closest && e.target.closest('[data-tip]')) tip.hidden = true; });
+  document.querySelectorAll('.lp-wrap').forEach(e => e.scrollLeft = e.scrollWidth);  /* sur mobile, afficher les parties récentes */
+  /* Sélection multiple des parties */
+  const bulk = document.getElementById('bulk');
+  if (bulk) {
+    const picks = () => [...document.querySelectorAll('.pick')];
+    const refresh = () => { const n = picks().filter(p => p.checked).length;
+      bulk.querySelector('[data-count]').textContent = n; bulk.querySelector('button').disabled = !n; bulk.classList.toggle('on', n > 0);
+      document.getElementById('pick-all').checked = n > 0 && n === picks().length; };
+    document.getElementById('pick-all').addEventListener('change', e => { picks().forEach(p => p.checked = e.target.checked); refresh(); });
+    document.addEventListener('change', e => { if (e.target.classList && e.target.classList.contains('pick')) refresh(); });
+  }
+  document.addEventListener('change', e => {
+    const card = e.target.closest && e.target.closest('.pcard');
+    if (card) card.classList.toggle('picked', e.target.value !== '');
+  });
+})();
+</script>
+</body>
+</html>

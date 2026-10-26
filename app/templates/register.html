@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Inscription · League Coach{% endblock %}
+{% block content %}
+<div class="auth">
+  <div class="brand"><span class="brand-mark">LC</span>League Coach</div>
+  <p class="muted" style="text-align:center">Le premier compte créé devient administrateur de l'appli.</p>
+  {% if error %}<div class="flash err" role="alert">{{ error }}</div>{% endif %}
+  <form method="post" action="/register" class="panel">
+    <h1 style="font-size:1.15rem">Créer un compte</h1>
+    <label class="field"><span>Identifiant</span><input type="text" name="username" id="username" autocomplete="username" required minlength="3" maxlength="32" autofocus></label>
+    <label class="field"><span>Mot de passe (10 caractères minimum)</span><input type="password" name="password" id="password" autocomplete="new-password" required minlength="10"></label>
+    <label class="field"><span>Confirme le mot de passe</span><input type="password" name="password2" id="password2" autocomplete="new-password" required minlength="10"></label>
+    <button class="btn" type="submit" style="justify-content:center">Créer mon compte</button>
+  </form>
+  <p class="muted" style="text-align:center"><a href="/login">J'ai déjà un compte</a></p>
+</div>
+{% endblock %}
