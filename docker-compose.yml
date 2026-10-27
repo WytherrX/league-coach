@@ -8,8 +8,8 @@ services:
     volumes:
       - league-coach-data:/data
     ports:
-      # Nginx Proxy Manager redirige coach.wytherrbastion.fr vers <IP du serveur>:8085
-      - "8085:8000"
+      # Port exposé sur l'hôte (PORT dans .env, 8085 par défaut), à cibler depuis le reverse proxy
+      - "${PORT:-8085}:8000"
 
 volumes:
   league-coach-data:

@@ -1,99 +1,106 @@
 # League Coach
 
-Application web auto-hébergée pour progresser en jungle sur League of Legends :
+Application web auto-hébergée pour progresser en **jungle** sur League of Legends. Elle importe tes parties classées depuis l'API Riot, repère tes points faibles, te fixe un objectif concret pour la partie suivante et t'aide à choisir le bon counter en draft selon ton propre champion pool.
 
-- **Comptes** : plusieurs utilisateurs, chacun avec ses comptes LoL (Riot ID, rang, objectif).
-- **Parties** : import automatique depuis l'API Riot (voir plus bas), ou saisie manuelle après chaque partie (KDA, morts avant 15 min, participation, CS/min, control wards, objectifs cédés, rang).
-- **Points faibles** : indicateurs calculés sur les 10, 20 ou 50 dernières parties et comparés à des cibles.
-- **Objectif par partie** : l'appli choisit un exercice concret sur ton point faible n° 1 et suit si tu l'as tenu.
-- **Pool** : pour chaque champion, ton aisance de 1 à 5. Le nombre de parties et ton bilan viennent directement des parties enregistrées. Le pool est trié par aisance puis par nombre de parties.
-- **Counters** : face à un jungler adverse, l'appli classe tes champions avec un score égal à la moyenne de trois sources (op.gg, u.gg, lolalytics), ajustée par ton historique sur le matchup, plus un bonus de maîtrise : de −4 à +3 points selon l'aisance, de 0 à +1 point selon les parties enregistrées. Elle indique si les sources sont d'accord et propose des bans pondérés par ton aisance.
+Interface en français, multi-utilisateur, un seul conteneur Docker.
 
-Stack : Python 3.12, FastAPI, SQLite, pages rendues côté serveur. Un seul conteneur, un seul volume.
+## Fonctionnalités
 
-## Installation sur le serveur
+- **Import automatique des parties** via l'API officielle de Riot : KDA, participation aux kills, CS/min, control wards, morts avant 15 minutes, objectifs perdus sans combat, rang et LP gagnés ou perdus. La saisie manuelle reste possible sans clé API.
+- **Points faibles** : indicateurs calculés sur les 10, 20 ou 50 dernières parties et comparés à des cibles de niveau Diamant.
+- **Objectif par partie** : un exercice concret sur ton point faible principal. Après la partie, tu notes si tu l'as tenu et une leçon.
+- **Évolution des LP** : courbe sur les dernières parties, avec les divisions en fond et le détail de chaque partie au survol.
+- **Champion pool** : ton aisance de 1 à 5 sur chaque champion. Le nombre de parties et le bilan viennent de tes parties enregistrées.
+- **Counters** : face à un jungler adverse, tes champions sont classés par un score combinant le winrate du matchup (moyenne d'op.gg, u.gg et lolalytics), ton bilan personnel sur ce matchup et ton aisance. Bans conseillés et meilleurs counters hors de ton pool.
+- **Plusieurs comptes LoL par utilisateur**, plusieurs utilisateurs par instance. Le premier inscrit devient administrateur.
+
+Stack : Python 3.12, FastAPI, Jinja2, SQLite. Pages rendues côté serveur, sans framework JavaScript.
+
+## Prérequis
+
+- Docker avec le plugin Compose.
+- Facultatif, une clé API Riot pour l'import automatique (voir plus bas).
+- Pour un accès depuis Internet, un reverse proxy en HTTPS : Nginx Proxy Manager, Caddy, Traefik ou équivalent.
+
+## Installation
 
 ```bash
-# 1. Depuis ton PC : envoyer l'archive (scp direct vers /root est souvent refusé)
-scp league-coach.zip user@serveur:/tmp/
-
-# 2. Sur le serveur, en root (sudo -i) : extraire et configurer
-cd /root && unzip -o /tmp/league-coach.zip
-cd /root/league-coach
+git clone https://github.com/WytherrX/league-coach.git
+cd league-coach
 cp .env.example .env
 sed -i "s/^SECRET_KEY=$/SECRET_KEY=$(openssl rand -hex 32)/" .env
-
-# 3. Lancer
+nano .env    # ajouter RIOT_API_KEY, ajuster PORT, TZ…
 docker compose up -d --build
-docker compose logs -f   # attendre "Application startup complete"
 ```
 
-L'appli écoute sur le port **8085** du serveur.
+L'appli écoute sur `http://<hôte>:8085`, ou sur le port choisi dans `PORT`. Crée tout de suite ton compte sur `/register` : **le premier compte devient administrateur et les inscriptions se ferment ensuite**, sauf avec `ALLOW_SIGNUP=true`.
 
-## Nginx Proxy Manager
+Pour un premier essai en HTTP sans reverse proxy, mets `COOKIE_SECURE=false`, sinon la connexion ne tiendra pas.
 
-1. Chez ton registrar, crée une entrée DNS `coach.wytherrbastion.fr` vers l'IP du serveur, comme pour tes autres sous-domaines.
-2. Dans Nginx Proxy Manager, ajoute un **Proxy Host** :
-   - Domain Names : `coach.wytherrbastion.fr`
-   - Scheme : `http`
-   - Forward Hostname / IP : l'IP du serveur sur le réseau Docker ou le LAN (par exemple `172.17.0.1` ou `192.168.x.x`)
-   - Forward Port : `8085`
-   - Coche **Block Common Exploits**
-3. Dans l'onglet **SSL** : demande un certificat Let's Encrypt, puis coche **Force SSL** et **HTTP/2 Support**.
-4. Ouvre tout de suite `https://coach.wytherrbastion.fr/register` et crée ton compte. **Le premier compte créé devient administrateur, et les inscriptions se ferment ensuite** (sauf avec `ALLOW_SIGNUP=true`).
+## Configuration (`.env`)
 
-Si Nginx Proxy Manager tourne lui-même dans Docker, tu peux aussi éviter d'ouvrir le port 8085. Dans `docker-compose.yml`, remplace le bloc `ports` par le réseau de NPM :
+| Variable | Défaut | Rôle |
+| --- | --- | --- |
+| `SECRET_KEY` | *(obligatoire)* | Clé de signature des sessions, 32 caractères minimum. L'appli refuse de démarrer sans elle. |
+| `ALLOW_SIGNUP` | `false` | `false` : seul le premier compte peut s'inscrire. `true` : inscriptions ouvertes. |
+| `COOKIE_SECURE` | `true` | Cookie de session réservé au HTTPS. `false` uniquement pour un test en HTTP. |
+| `PORT` | `8085` | Port exposé sur l'hôte. |
+| `RIOT_API_KEY` | *(vide)* | Active l'import automatique des parties. Vide : saisie manuelle uniquement. |
+| `SYNC_MINUTES` | `10` | Intervalle de synchronisation avec Riot, 5 minutes minimum. |
+| `TZ` | `Europe/Paris` | Fuseau horaire utilisé pour dater les parties. |
+
+Après une modification : `docker compose up -d`.
+
+## Derrière un reverse proxy
+
+L'appli lit les en-têtes `X-Forwarded-*` : elle fonctionne derrière n'importe quel reverse proxy qui termine le HTTPS.
+
+Exemple avec **Nginx Proxy Manager** :
+
+1. Crée une entrée DNS pour ton sous-domaine, par exemple `coach.example.com`, vers ton serveur.
+2. Ajoute un **Proxy Host** : le domaine, le scheme `http`, l'IP de l'hôte Docker et le port `8085`.
+3. Dans l'onglet **SSL**, demande un certificat Let's Encrypt, puis coche **Force SSL** et **HTTP/2 Support**.
+
+Si le reverse proxy tourne lui-même dans Docker, tu peux ne pas exposer de port. Remplace le bloc `ports` de `docker-compose.yml` par le réseau du proxy, puis cible `league-coach:8000` :
 
 ```yaml
-    networks: [npm]
+    networks: [proxy]
 networks:
-  npm:
+  proxy:
     external: true
-    name: <nom du réseau de NPM>   # docker network ls
+    name: <réseau du reverse proxy>   # docker network ls
 ```
 
-Dans NPM, utilise alors `league-coach` comme Forward Hostname et `8000` comme port.
+## Import automatique (API Riot)
 
-## Variables (.env)
+Demande une clé sur [developer.riotgames.com](https://developer.riotgames.com). Une **Personal API Key** convient à un usage personnel. Une clé de développement fonctionne aussi, mais expire toutes les 24 heures : la page Parties affiche alors « Clé API Riot refusée ».
 
-| Variable | Rôle |
-| --- | --- |
-| `SECRET_KEY` | Clé de signature des sessions, 32 caractères minimum. L'appli refuse de démarrer sans elle. |
-| `ALLOW_SIGNUP` | `false` : seul le premier compte peut s'inscrire. `true` : inscriptions ouvertes pour tes amis. |
-| `COOKIE_SECURE` | `true` derrière HTTPS. `false` seulement pour un test en `http://IP:8085`. |
+Pour vérifier la clé, remplace `<pseudo>` et `<tag>` par ton Riot ID. Si ton compte est en Amérique ou en Asie, remplace aussi `europe` par `americas` ou `asia` :
 
-Après modification : `docker compose up -d`.
+```bash
+source .env && curl -s -H "X-Riot-Token: $RIOT_API_KEY" "https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/<pseudo>/<tag>"
+```
 
-## Import automatique des parties (API Riot)
+Une réponse contenant `"puuid"` confirme que la clé fonctionne.
 
-Avec `RIOT_API_KEY` dans `.env`, l'appli importe toute seule tes parties classées solo/duo jouées en jungle. Elle le fait toutes les `SYNC_MINUTES` minutes (10 par défaut), à l'ajout d'un compte (50 dernières parties classées) et avec le bouton **Synchroniser** des pages Parties et Comptes.
+L'appli synchronise chaque compte toutes les `SYNC_MINUTES` minutes et à l'ajout d'un compte, où elle importe les 50 dernières parties classées. Le bouton **Synchroniser** des pages Parties et Comptes lance aussi une synchronisation. Seules les parties **classées solo/duo jouées en jungle** sont importées. Les remakes sont ignorés.
 
-| Champ | Calcul |
+| Donnée | Calcul |
 | --- | --- |
 | Champion, jungler adverse, résultat, K/D/A | Résultat de la partie (Match-V5) |
 | Participation aux kills, CS/min, control wards | Statistiques de fin de partie |
-| Morts avant 15 min | Chronologie : tes morts avant 15:00 |
-| Objectifs perdus sans combat | Chronologie : dragon, vague de larves, héraut, Baron ou Atakhan pris par l'adversaire, sans kill à moins de 3 000 unités du pit entre 30 s avant et 15 s après, et sans allié près du pit aux relevés de positions qui encadrent la prise (Riot en donne un par minute). Reste une estimation. |
-| Rang et LP | League-V4, relevé à chaque synchronisation et reporté sur la dernière partie |
-| LP gagnés ou perdus | Écart entre deux relevés, attribué à la partie seulement si une seule partie classée a été jouée entre les deux (compteur victoires + défaites de League-V4). Promotions et rétrogradations comprises. |
+| Morts avant 15 min | Chronologie de la partie |
+| Objectifs perdus sans combat | Dragon, vague de larves, héraut, Baron ou Atakhan pris par l'adversaire, sans kill à moins de 3 000 unités du pit entre 30 s avant et 15 s après, et sans allié près du pit aux relevés de positions qui encadrent la prise (Riot en fournit un par minute). C'est une estimation. |
+| Rang et LP | League-V4, relevé à chaque synchronisation |
+| LP gagnés ou perdus | Écart entre deux relevés, attribué à une partie seulement si une seule partie classée a été jouée entre les deux. Promotions et rétrogradations comprises. |
 
-Le tableau de bord affiche l'évolution des LP sur les 60 dernières parties qui ont un rang, avec les divisions en fond et le détail de chaque partie au survol.
+Riot ne fournit pas l'historique des LP : les LP par partie et la courbe se remplissent à partir de l'installation.
 
-Les remakes et les parties hors jungle sont ignorés. Une partie déjà saisie à la main n'est pas dupliquée : la synchronisation la complète et garde ton objectif et ta leçon. Il te reste à indiquer pour chaque nouvelle partie si tu as tenu ton objectif, et une leçon (badge « À compléter »). Une partie importée que tu supprimes n'est pas réimportée.
+Une partie déjà saisie à la main n'est pas dupliquée : l'import la complète et conserve l'objectif et la leçon. Une partie importée puis supprimée n'est pas réimportée. Les requêtes respectent les limites de débit d'une clé personnelle, soit 20 par seconde et 100 toutes les 2 minutes.
 
-La clé se demande sur developer.riotgames.com (Personal API Key). Une clé de développement fonctionne aussi, mais expire toutes les 24 heures : la page Parties affiche alors « Clé API Riot refusée ». Après un changement de clé : `docker compose up -d`.
+## Données de counters
 
-Vérifier la clé depuis le serveur :
-
-```bash
-source .env && curl -s -H "X-Riot-Token: $RIOT_API_KEY" "https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/KingX/8992"
-```
-
-Une réponse contenant `"puuid"` signifie que la clé fonctionne.
-
-## Mettre à jour les counters à chaque patch
-
-Les winrates de matchups sont dans `app/data/matchups.json` : 59 junglers, Émeraude+, patch 26.21, collectés le 26/10/2026 sur trois sources.
+Les winrates de matchups sont dans [`app/data/matchups.json`](app/data/matchups.json) : 59 junglers, rangs Émeraude et plus, patch 26.21, trois sources.
 
 | Source | Matchups | Remarque |
 | --- | --- | --- |
@@ -101,11 +108,9 @@ Les winrates de matchups sont dans `app/data/matchups.json` : 59 junglers, Émer
 | u.gg | 3 422 | Parties et victoires brutes |
 | lolalytics | 2 837 | Masque les matchups sous 100 parties. Ses winrates surestiment d'environ 1,7 point le champion de la page : la moyenne des deux sens de lecture corrige ce biais. |
 
-Pour chaque matchup, l'appli fait la moyenne des sources qui ont au moins 100 parties. Elle affiche « sources d'accord » quand l'écart entre elles reste sous 3 points.
+Pour chaque matchup, l'appli fait la moyenne des sources qui ont au moins 100 parties. Elle indique « sources d'accord » quand l'écart entre elles reste sous 3 points.
 
-Pour un nouveau patch, importe un nouveau fichier depuis la page **Admin**. Il est conservé dans le volume et prioritaire sur celui de l'image.
-
-Format attendu :
+Pour un nouveau patch, un administrateur importe un fichier depuis la page **Admin**. Le fichier est conservé dans le volume de données et remplace celui du dépôt. Format attendu :
 
 ```json
 {
@@ -118,39 +123,45 @@ Format attendu :
 }
 ```
 
-`matchups[A][B] = [parties, victoires de A contre B]`. L'ancien format à une seule source (`"matchups"` à la racine) est toujours accepté.
+`matchups[A][B] = [parties, victoires de A contre B]`. Les clés des champions sont le `championName` de Riot en minuscules : `monkeyking` pour Wukong, `khazix`, `belveth`…
 
-## Reprise d'une installation « jungle-coach »
-
-Docker nomme le volume d'après le dossier : `jungle-coach_jungle-coach-data` devient `league-coach_league-coach-data`. Pour garder tes comptes et tes parties :
+## Mise à jour
 
 ```bash
-cp /opt/jungle-coach/.env /root/league-coach/.env
-cd /opt/jungle-coach && docker compose down
-docker volume create league-coach_league-coach-data
-docker run --rm -v jungle-coach_jungle-coach-data:/from -v league-coach_league-coach-data:/to alpine cp -a /from/. /to/
-cd /root/league-coach && docker compose up -d --build
+cd league-coach && git pull && docker compose up -d --build
 ```
 
-Au démarrage, l'appli renomme `jungle-coach.db` en `league-coach.db`. Il faudra te reconnecter une fois (cookie renommé). Une fois vérifié : `docker volume rm jungle-coach_jungle-coach-data` et `rm -r /opt/jungle-coach`.
-
-## Mise à jour depuis une version précédente
-
-Au démarrage, l'appli convertit automatiquement l'ancien pool : main → 5/5, secondaire → 3/5, situationnel → 2/5. Ajuste ensuite les niveaux d'aisance dans la page **Pool**.
+Le schéma de la base est migré automatiquement au démarrage. `.env` et la base ne sont pas versionnés : une mise à jour ne les touche jamais. Pour revenir à une version précédente : `git log --oneline`, puis `git checkout <commit>` et `docker compose up -d --build`.
 
 ## Sauvegarde
+
+Les données (base SQLite et matchups importés) sont dans le volume Docker `league-coach_league-coach-data`.
 
 ```bash
 docker compose exec league-coach python -c "import sqlite3; sqlite3.connect('/data/league-coach.db').backup(sqlite3.connect('/data/backup.db'))"
 docker compose cp league-coach:/data/backup.db ./league-coach-$(date +%F).db
 ```
 
-## Mise à jour du code
-
-Le code est sur GitHub. Sur le serveur :
+## Développement
 
 ```bash
-cd /root/league-coach && git pull && docker compose up -d --build
+python3 -m venv .venv && . .venv/bin/activate
+pip install -r requirements.txt
+cd app
+SECRET_KEY=$(openssl rand -hex 32) COOKIE_SECURE=false DB_PATH=./dev.db uvicorn main:app --reload
 ```
 
-`.env` et la base de données ne sont pas versionnés (`.gitignore`) : une mise à jour ne les touche jamais. Pour revenir à la version précédente : `git log --oneline` puis `git checkout <commit>` et `docker compose up -d --build`.
+| Fichier | Rôle |
+| --- | --- |
+| `app/main.py` | Routes, sessions, rendu des pages |
+| `app/db.py` | Schéma SQLite, migrations, mots de passe (scrypt) |
+| `app/analysis.py` | Indicateurs, objectifs, counters, graphiques SVG |
+| `app/riot.py` | Client de l'API Riot et extraction des données d'une partie |
+| `app/sync.py` | Synchronisation en tâche de fond |
+| `app/templates/`, `app/static/` | Pages Jinja2 et feuille de style |
+
+## Mentions
+
+League Coach n'est ni approuvé ni soutenu par Riot Games et ne reflète pas les opinions de Riot Games ni de quiconque officiellement impliqué dans la production ou la gestion des propriétés de Riot Games. Riot Games et toutes les propriétés associées sont des marques commerciales ou des marques déposées de Riot Games, Inc.
+
+Les winrates de matchups proviennent d'op.gg, u.gg et lolalytics. Les icônes de champions sont servies par le Data Dragon de Riot.
