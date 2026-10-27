@@ -160,6 +160,10 @@ SECRET_KEY=$(openssl rand -hex 32) COOKIE_SECURE=false DB_PATH=./dev.db uvicorn 
 | `app/sync.py` | Synchronisation en tâche de fond |
 | `app/templates/`, `app/static/` | Pages Jinja2 et feuille de style |
 
+## Licence
+
+Code distribué sous licence [MIT](LICENSE) : tu peux l'utiliser, le modifier et le redistribuer librement, à condition de conserver la mention de copyright.
+
 ## Mentions
 
 League Coach n'est ni approuvé ni soutenu par Riot Games et ne reflète pas les opinions de Riot Games ni de quiconque officiellement impliqué dans la production ou la gestion des propriétés de Riot Games. Riot Games et toutes les propriétés associées sont des marques commerciales ou des marques déposées de Riot Games, Inc.
