@@ -294,19 +294,17 @@ tr.top td:first-child{box-shadow:inset 3px 0 0 var(--great)}
 .chart-target{position:absolute;right:2px;transform:translateY(-130%);font-size:.68rem;font-weight:600;color:var(--muted);pointer-events:none;white-space:nowrap}
 .chart-cross{position:absolute;top:0;bottom:0;width:1px;background:var(--line-2);pointer-events:none}
 .chart-pt{position:absolute;width:24px;height:24px;margin:-12px 0 0 -12px;border:0;padding:0;background:transparent;cursor:pointer;border-radius:999px;z-index:1}
-.chart-pt::after{content:"";position:absolute;inset:8px;border-radius:999px;background:var(--win);box-shadow:0 0 0 2px var(--surface);transition:transform .12s}
-.chart-pt.L::after{background:var(--loss)}
+.chart-pt::after{content:"";position:absolute;inset:8px;border-radius:999px;background:var(--accent-2);box-shadow:0 0 0 2px var(--surface);opacity:0;transform:scale(.5);transition:opacity .12s,transform .12s}
 .chart-pt.on,.chart-pt:focus-visible{z-index:2;outline:none}
-.chart-pt.on::after,.chart-pt:hover::after,.chart-pt:focus-visible::after{transform:scale(1.55)}
+.chart-pt.on::after,.chart-pt:hover::after,.chart-pt:focus-visible::after{opacity:1;transform:scale(1.3)}
 .chart-pt:focus-visible::after{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--accent)}
 .chart-x{grid-column:2;position:relative;height:24px;font-size:.72rem;color:var(--muted);font-variant-numeric:tabular-nums}
 .chart-x span{position:absolute;top:7px;white-space:nowrap;transform:translateX(-50%)}
 .chart-x .start{transform:none} .chart-x .end{transform:translateX(-100%)}
 .chart-legend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:.74rem;color:var(--muted)}
 .chart-legend span{display:inline-flex;align-items:center;gap:6px}
-.chart-legend .dot{width:8px;height:8px;border-radius:999px;background:var(--win)}
-.chart-legend .dot.L{background:var(--loss)}
 .chart-legend .key{width:16px;border-top:2.5px solid var(--accent-2)}
+.chart-legend .key.raw{border-top:1.5px solid var(--muted);opacity:.7}
 .chart-legend .key.target{border-top:1.5px dashed var(--warn)}
 .chart-legend .key.band{height:10px;border:0;border-radius:2px;background:linear-gradient(90deg,rgba(45,190,122,.45),rgba(124,140,255,.45))}
 .chart-kpi{display:inline-flex;align-items:baseline;gap:6px}
@@ -352,7 +350,6 @@ tr.top td:first-child{box-shadow:inset 3px 0 0 var(--great)}
   .chart-x .opt{display:none}
   .topbar .brand-name{display:none}
   .acct select{max-width:230px}
-  .chart.lp .chart-pt::after{inset:9px}
   .chart-target{display:none}
   .seg a{padding:4px 14px}
 }

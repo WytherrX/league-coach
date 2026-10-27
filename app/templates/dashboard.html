@@ -34,7 +34,7 @@
       <span><span class="label">Actuel</span><b class="{{ tier_class(lp.last.rank_div) }}"><span class="tier-txt">{{ rank_label(lp.last.rank_div, lp.last.rank_lp) }}</span></b></span>
     </div>{% endif %}
   </div>
-  {% if lp %}{{ chart(lp.chart, 280, lp=True, label="Évolution des LP") }}{{ chart_legend(avg=False, target=False, lp=True) }}
+  {% if lp %}{{ chart(lp.chart, 280, lp=True, label="Évolution des LP") }}
   {% else %}<div class="empty">{% if RIOT %}La courbe apparaît après deux parties synchronisées : le rang est relevé après chaque partie classée.{% else %}Indique ton rang après tes parties dans <a href="/games">Parties</a> pour tracer la courbe.{% endif %}</div>{% endif %}
 </section>
 

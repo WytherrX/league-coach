@@ -69,7 +69,7 @@
 
 {% macro chart_legend(avg=True, target=True, lp=False) -%}
 <div class="chart-legend" aria-hidden="true">
-  <span><i class="dot W"></i>Victoire</span><span><i class="dot L"></i>Défaite</span>
+  <span><i class="key{{ " raw" if avg }}"></i>Par partie</span>
   {% if avg %}<span><i class="key avg"></i>Moyenne sur 5 parties</span>{% endif %}
   {% if target %}<span><i class="key target"></i>Cible</span>{% endif %}
   {% if lp %}<span><i class="key band"></i>Divisions</span>{% endif %}
