@@ -5,19 +5,19 @@
 <div class="cols">
   <section class="panel">
     <h2>Données de matchups</h2>
-    <div class="tbl"><table><tbody>
-      <tr><td class="muted">Patch</td><td>{{ mu.patch }} ({{ mu.tier }})</td></tr>
-      <tr><td class="muted">Collecte</td><td>{{ mu.collected }}</td></tr>
-      <tr><td class="muted">Champions</td><td>{{ mu.champions|length }}</td></tr>
-      {% for key, src in mu.sources.items() %}
-      <tr><td class="muted">Source</td><td><a href="{{ src.url }}" target="_blank" rel="noopener">{{ src.label }}</a> · {{ src.matchups.values()|map('length')|sum }} matchups{% if src.note %}<br><span class="muted" style="font-size:.85rem">{{ src.note }}</span>{% endif %}</td></tr>
-      {% endfor %}
-    </tbody></table></div>
+    <div class="tbl"><table>
+      <thead><tr><th>Rôle</th><th>Patch</th><th>Collecte</th><th class="n">Champions</th><th>Sources</th></tr></thead>
+      <tbody>{% for key, data in all_mu.items() %}
+      <tr><td><b>{{ ROLES[key].label }}</b></td><td>{{ data.patch }} ({{ data.tier }})</td><td>{{ data.collected }}</td><td class="n">{{ data.champions|length }}</td>
+        <td class="small">{% for skey, src in data.sources.items() %}<a href="{{ src.url }}" target="_blank" rel="noopener">{{ src.label }}</a> {{ src.matchups.values()|map('length')|sum }}{{ ' · ' if not loop.last }}{% endfor %}</td></tr>
+      {% endfor %}</tbody>
+    </table></div>
     <form method="post" action="/admin/matchups" enctype="multipart/form-data" class="inline">
-      <label class="field" style="flex:1"><span>Remplacer par un nouveau fichier matchups.json</span><input type="file" name="file" id="file" accept="application/json,.json" required></label>
+      <label class="field"><span>Rôle</span><select name="role" id="mu_role">{% for key, cfg in ROLES.items() %}<option value="{{ key }}">{{ cfg.label }}</option>{% endfor %}</select></label>
+      <label class="field" style="flex:1"><span>Nouveau fichier de matchups (JSON)</span><input type="file" name="file" id="file" accept="application/json,.json" required></label>
       <button class="btn" type="submit">Importer</button>
     </form>
-    <p class="muted" style="font-size:.85rem">À refaire à chaque patch. Le fichier est conservé dans le volume de données.</p>
+    <p class="muted small">À refaire à chaque patch. Le fichier est conservé dans le volume de données et remplace celui du dépôt pour ce rôle.</p>
   </section>
   <section class="panel">
     <div class="panel-h"><h2>Import Riot</h2><span class="pill {{ 'good' if RIOT else 'bad' }}">{{ 'Clé API chargée' if RIOT else 'Pas de clé API' }}</span></div>

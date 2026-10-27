@@ -17,7 +17,7 @@
     {% set nm, _, tg = a.riot_id.partition('#') %}
     <tr>
       <td><span class="champ"><span class="emblem sm {{ tier_class(a.rank_div) }}">{{ a.rank_div or '–' }}</span>
-        <span><b>{{ nm }}</b> <span class="dim">#{{ tg }}</span> <span class="pill">{{ a.region|upper }}</span>{% if account and a.id == account.id %} <span class="pill acc">affiché</span>{% endif %}<br>
+        <span><b>{{ nm }}</b> <span class="dim">#{{ tg }}</span> <span class="pill">{{ a.region|upper }}</span> <span class="pill {{ 'great' if a.role == 'adc' else 'acc' }}">{{ ROLES[a.role].label if a.role in ROLES else 'Jungle' }}</span>{% if account and a.id == account.id %} <span class="pill acc">affiché</span>{% endif %}<br>
         <span class="small {{ tier_class(a.rank_div) }}"><span class="tier-txt">{{ rank_label(a.rank_div, a.rank_lp) }}</span></span></span></span></td>
       <td>
         <form method="post" action="/accounts/{{ a.id }}/edit" class="inline" style="flex-wrap:nowrap">
@@ -50,15 +50,18 @@
 
 <section class="panel">
   <h2>{{ 'Ajouter un compte' if accounts else 'Ajoute ton premier compte' }}</h2>
-  {% if not accounts %}<p class="muted">{% if RIOT %}Indique ton Riot ID : tes dernières parties classées en jungle et ton rang sont importés automatiquement.{% else %}Indique ton Riot ID et ton rang actuel. Tu choisiras ensuite ton champion pool, puis tu pourras enregistrer tes parties.{% endif %}</p>{% endif %}
+  {% if not accounts %}<p class="muted">{% if RIOT %}Indique ton Riot ID : tes dernières parties classées dans le rôle choisi et ton rang sont importés automatiquement.{% else %}Indique ton Riot ID et ton rang actuel. Tu choisiras ensuite ton champion pool, puis tu pourras enregistrer tes parties.{% endif %}</p>{% endif %}
   <form method="post" action="/accounts" class="form">
     <label class="field s2"><span>Riot ID (pseudo#tag)</span><input type="text" name="riot_id" id="riot_id" required maxlength="40" autocomplete="off"></label>
+    <label class="field"><span>Rôle suivi</span>
+      <select name="role" id="role">{% for key, cfg in ROLES.items() %}<option value="{{ key }}">{{ cfg.label }}</option>{% endfor %}</select></label>
     <label class="field"><span>Région</span>
       <select name="region" id="region">{% for r in ['euw','eune','na','kr','br','lan','las','oce','tr','ru','jp'] %}<option value="{{ r }}">{{ r|upper }}</option>{% endfor %}</select></label>
     <label class="field"><span>Rang actuel</span>{{ rank_select('rank_div', None, 'new_rank', 'Rang actuel') }}</label>
     <label class="field"><span>LP</span><input type="number" name="rank_lp" id="new_lp" min="0" max="2000"></label>
     <label class="field"><span>Objectif</span>{{ rank_select('goal_div', None, 'new_goal', 'Objectif') }}</label>
-    <div class="s6"><button class="btn" type="submit">Ajouter le compte</button></div>
+    <div class="s6 inline" style="align-items:center"><button class="btn" type="submit">Ajouter le compte</button>
+      <span class="muted small">Chaque compte suit un rôle : objectifs, pool et counters en dépendent. Pour suivre deux rôles avec le même Riot ID, ajoute-le deux fois.</span></div>
   </form>
 </section>
 <section class="panel" id="securite">

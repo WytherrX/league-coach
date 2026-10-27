@@ -33,7 +33,8 @@ app.mount("/static", StaticFiles(directory=os.path.join(HERE, "static")), name="
 templates = Jinja2Templates(directory=os.path.join(HERE, "templates"))
 
 db.init()
-MU = analysis.load_matchups()
+MU = {role: analysis.load_matchups(role) for role in analysis.ROLES}   # matchups par rôle
+CHAMPIONS = {k: v for data in MU.values() for k, v in data["champions"].items()}     # noms et images de tous les rôles
 sync.start()
 log = logging.getLogger("uvicorn.error")
 
@@ -121,12 +122,17 @@ if no_users():
 
 
 def champ_name(key):
-    return MU["champions"].get(key, {}).get("name", key or "—")
+    return CHAMPIONS.get(key, {}).get("name", key or "—")
 
 
 def champ_icon(key):
-    img = MU["champions"].get(key, {}).get("img")
-    return f"https://ddragon.leagueoflegends.com/cdn/{MU['ddragon']}/img/champion/{img}.png" if img else ""
+    # Champion absent des données (joué hors méta) : le nom Riot en minuscules, première lettre en majuscule, suffit souvent
+    img = CHAMPIONS.get(key, {}).get("img") or (key.capitalize() if key and key.isalpha() else None)
+    return f"https://ddragon.leagueoflegends.com/cdn/{MU['jungle']['ddragon']}/img/champion/{img}.png" if img else ""
+
+
+def mu_of(acc):
+    return MU[analysis.role_of(acc)]
 
 
 TIER_CLASS = {"I": "iron", "B": "bronze", "S": "silver", "G": "gold", "P": "plat", "E": "emerald", "D": "diamond",
@@ -174,7 +180,7 @@ templates.env.filters["fr"] = lambda v, d=1: f"{v:.{d}f}".replace(".", ",")
 with open(os.path.join(HERE, "static", "style.css"), "rb") as f:
     STATIC_V = hashlib.sha1(f.read()).hexdigest()[:10]
 templates.env.globals.update(STATIC_V=STATIC_V, COMFORT=analysis.COMFORT, mastery_bonus=analysis.mastery_bonus, champ_name=champ_name, champ_icon=champ_icon, rank_label=analysis.rank_label,
-                             RANKS=analysis.RANKS, DRILLS=analysis.DRILLS, DRILL_INDEX=analysis.DRILL_INDEX,
+                             RANKS=analysis.RANKS, ROLES=analysis.ROLES, DRILL_INDEX=analysis.DRILL_INDEX,
                              tier_class=tier_class, wr_class=wr_class, kda=kda, RIOT=bool(riot.API_KEY), SYNC_MINUTES=sync.INTERVAL)
 
 
@@ -238,9 +244,11 @@ def render(request, name, user, **ctx):
     if acc:
         with db.connect() as con:
             to_review = con.execute("SELECT COUNT(*) FROM games WHERE account_id = ? AND reviewed = 0", (acc["id"],)).fetchone()[0]
-    ctx.update(request=request, user=user, account=acc, accounts=accounts, mu=MU, flash=request.session.pop("flash", None),
+    mu = mu_of(acc)
+    ctx.update(request=request, user=user, account=acc, accounts=accounts, mu=mu, flash=request.session.pop("flash", None),
+               ROLE=analysis.ROLES[analysis.role_of(acc)], role=analysis.role_of(acc),
                to_review=to_review, syncing=bool(acc and acc["id"] in sync.RUNNING),
-               all_champs=sorted(MU["champions"], key=champ_name))
+               all_champs=sorted(mu["champions"], key=champ_name))
     return templates.TemplateResponse(request, name, ctx)
 
 
@@ -398,14 +406,13 @@ def dashboard(request: Request, n: int = 20):
     pool = get_pool(acc["id"])
     all_games = get_games(acc["id"])
     recent = all_games[:n]
+    role = analysis.role_of(acc)
     metrics = analysis.compute_metrics(recent, pool)
-    weak = analysis.weaknesses(metrics)
-    focus = analysis.next_focus(weak, all_games)
+    weak = analysis.weaknesses(metrics, role)
+    focus = analysis.next_focus(weak, all_games, role)
     chrono = list(reversed(all_games[:30]))
-    charts = {
-        "kp": analysis.sparkline([g["kp"] for g in chrono], 60, 20, 90),
-        "deaths": analysis.sparkline([g["deaths"] for g in chrono], 4.5, 0, 12),
-    }
+    charts = [(title, caption, analysis.sparkline([g[key] for g in chrono], target, lo, hi))
+              for key, title, target, lo, hi, caption in analysis.ROLES[role]["charts"]]
     drills = {}
     for g in all_games:
         if g["focus"]:
@@ -435,7 +442,7 @@ def dashboard(request: Request, n: int = 20):
                   focus=focus, charts=charts, drills=drills, hard=analysis.hard_matchups(all_games),
                   champ_stats=champ_stats, totals=totals, wins=wins, main_champ=main_champ,
                   streak=(streak, recent[0]["result"]) if recent else None,
-                  bans=analysis.suggested_bans(MU, pool) if pool else [], early=analysis.EARLY)
+                  bans=analysis.suggested_bans(mu_of(acc), pool) if pool else [])
 
 
 # ---------- Comptes LoL ----------
@@ -450,7 +457,7 @@ def accounts_page(request: Request):
 
 @app.post("/accounts")
 def account_add(request: Request, riot_id: str = Form(...), region: str = Form("euw"), rank_div: str = Form(""),
-                rank_lp: str = Form(""), goal_div: str = Form("")):
+                rank_lp: str = Form(""), goal_div: str = Form(""), role: str = Form("jungle")):
     user = current_user(request)
     if not user:
         return go("/login")
@@ -465,8 +472,9 @@ def account_add(request: Request, riot_id: str = Form(...), region: str = Form("
         flash(request, "Les LP doivent être un nombre entre 0 et 5000.", "err")
         return go("/accounts")
     with db.connect() as con:
-        cur = con.execute("INSERT INTO accounts (user_id, riot_id, region, rank_div, rank_lp, goal_div) VALUES (?, ?, ?, ?, ?, ?)",
-                          (user["id"], riot_id, region if region in riot.ROUTING else "euw", rank_or_none(rank_div), lp, rank_or_none(goal_div)))
+        cur = con.execute("INSERT INTO accounts (user_id, riot_id, region, rank_div, rank_lp, goal_div, role) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                          (user["id"], riot_id, region if region in riot.ROUTING else "euw", rank_or_none(rank_div), lp, rank_or_none(goal_div),
+                           role if role in analysis.ROLES else "jungle"))
     request.session["account"] = cur.lastrowid
     if riot.API_KEY:
         sync.trigger(cur.lastrowid)
@@ -541,8 +549,8 @@ def pool_page(request: Request):
     acc, _ = active_account(request, user)
     if not acc:
         return go("/accounts")
-    champs = sorted(MU["champions"], key=lambda k: champ_name(k))
-    stats = MU["totals"]
+    champs = sorted(mu_of(acc)["champions"], key=lambda k: champ_name(k))
+    stats = mu_of(acc)["totals"]
     return render(request, "pool.html", user, pool=get_pool(acc["id"]), champs=champs, stats=stats)
 
 
@@ -556,7 +564,7 @@ async def pool_save(request: Request):
         return go("/accounts")
     form = await request.form()
     rows = []
-    for champ in MU["champions"]:
+    for champ in mu_of(acc)["champions"]:
         comfort = form.get("c_" + champ, "")
         if comfort in ("1", "2", "3", "4", "5"):
             rows.append((acc["id"], champ, int(comfort)))
@@ -579,9 +587,10 @@ def games_page(request: Request):
         return go("/accounts")
     pool = get_pool(acc["id"])
     all_games = get_games(acc["id"])
-    weak = analysis.weaknesses(analysis.compute_metrics(all_games[:20], pool))
-    focus = analysis.next_focus(weak, all_games)
-    champs = sorted(MU["champions"], key=lambda k: champ_name(k))
+    role = analysis.role_of(acc)
+    weak = analysis.weaknesses(analysis.compute_metrics(all_games[:20], pool), role)
+    focus = analysis.next_focus(weak, all_games, role)
+    champs = sorted(mu_of(acc)["champions"], key=lambda k: champ_name(k))
     pool_sorted = list(pool)  # déjà trié par aisance puis nombre de parties
     return render(request, "games.html", user, games=all_games, focus=focus, champs=champs, pool_sorted=pool_sorted,
                   today=datetime.date.today().isoformat())
@@ -592,14 +601,14 @@ def game_add(request: Request, played_on: str = Form(...), champ: str = Form(...
              result: str = Form(...), kills: str = Form(""), deaths: str = Form(""), assists: str = Form(""),
              deaths_pre15: str = Form(""), kp: str = Form(""), cs_min: str = Form(""), control_wards: str = Form(""),
              obj_lost_free: str = Form(""), focus: str = Form(""), focus_ok: str = Form(""), rank_div: str = Form(""),
-             rank_lp: str = Form(""), lesson: str = Form("")):
+             rank_lp: str = Form(""), lesson: str = Form(""), cs10: str = Form(""), gd15: str = Form(""), dmg_share: str = Form("")):
     user = current_user(request)
     if not user:
         return go("/login")
     acc, _ = active_account(request, user)
     if not acc:
         return go("/accounts")
-    if champ not in MU["champions"] or (enemy and enemy not in MU["champions"]):
+    if champ not in mu_of(acc)["champions"] or (enemy and enemy not in mu_of(acc)["champions"]):
         flash(request, "Choisis les champions dans la liste.", "err")
         return go("/games")
     try:
@@ -610,6 +619,7 @@ def game_add(request: Request, played_on: str = Form(...), champ: str = Form(...
                   to_int(obj_lost_free, 0, 50),
                   focus if focus in analysis.DRILL_INDEX else None, None if focus_ok == "" else int(focus_ok == "1"),
                   rank_or_none(rank_div), to_int(rank_lp, 0, 5000), lesson.strip()[:500] or None)
+        extra = (to_int(cs10, 0, 200), to_int(gd15, -10_000, 10_000), to_int(dmg_share, 0, 100))
     except ValueError:
         flash(request, "Une valeur n'est pas valide (nombre ou date). Vérifie le formulaire.", "err")
         return go("/games")
@@ -631,8 +641,8 @@ def game_add(request: Request, played_on: str = Form(...), champ: str = Form(...
             if prev and values[16] is not None:
                 lp_change = analysis.rank_value(values[15], values[16]) - analysis.rank_value(prev["rank_div"], prev["rank_lp"])
         con.execute("""INSERT INTO games (account_id, played_on, champ, enemy, result, kills, deaths, assists, deaths_pre15,
-                       kp, cs_min, control_wards, obj_lost_free, focus, focus_ok, rank_div, rank_lp, lesson, lp_change)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", values + (lp_change,))
+                       kp, cs_min, control_wards, obj_lost_free, focus, focus_ok, rank_div, rank_lp, lesson, lp_change, cs10, gd15, dmg_share)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", values + (lp_change,) + extra)
         if values[15]:
             con.execute("UPDATE accounts SET rank_div = ?, rank_lp = ? WHERE id = ?", (values[15], values[16], acc["id"]))
     flash(request, "Partie enregistrée.")
@@ -701,11 +711,12 @@ def counters_page(request: Request, enemy: str = ""):
     if not acc:
         return go("/accounts")
     pool = get_pool(acc["id"])
-    enemy = enemy if enemy in MU["champions"] else ""
-    picks, best = analysis.counters(MU, pool, get_games(acc["id"]), enemy) if enemy else ([], [])
-    champs = sorted(MU["champions"], key=lambda k: champ_name(k))
+    mu = mu_of(acc)
+    enemy = enemy if enemy in mu["champions"] else ""
+    picks, best = analysis.counters(mu, pool, get_games(acc["id"]), enemy) if enemy else ([], [])
+    champs = sorted(mu["champions"], key=lambda k: champ_name(k))
     return render(request, "counters.html", user, pool=pool, enemy=enemy, picks=picks, best=best, champs=champs,
-                  early=analysis.EARLY, bans=analysis.suggested_bans(MU, pool) if pool else [])
+                  bans=analysis.suggested_bans(mu, pool) if pool else [])
 
 
 # ---------- Administration ----------
@@ -718,15 +729,17 @@ def admin_page(request: Request):
     with db.connect() as con:
         users = con.execute("""SELECT u.*, (SELECT COUNT(*) FROM accounts a WHERE a.user_id = u.id) AS n_accounts
                                FROM users u ORDER BY u.id""").fetchall()
-    return render(request, "admin.html", user, users=users, signup=ALLOW_SIGNUP)
+    return render(request, "admin.html", user, users=users, signup=ALLOW_SIGNUP, all_mu=MU)
 
 
 @app.post("/admin/matchups")
-async def admin_matchups(request: Request, file: UploadFile = File(...)):
-    global MU
+async def admin_matchups(request: Request, file: UploadFile = File(...), role: str = Form("jungle")):
+    global CHAMPIONS
     user = current_user(request)
     if not user or not user["is_admin"]:
         return go("/")
+    if role not in analysis.ROLES:
+        return go("/admin")
     try:
         raw = await file.read(5_000_001)
         assert len(raw) <= 5_000_000            # 5 Mo maximum
@@ -742,10 +755,11 @@ async def admin_matchups(request: Request, file: UploadFile = File(...)):
     except Exception:
         flash(request, "Fichier refusé : ce n'est pas un jeu de matchups valide.", "err")
         return go("/admin")
-    with open(analysis.OVERRIDE, "w", encoding="utf-8") as f:
+    with open(analysis.override_path(role), "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False)
-    MU = analysis.load_matchups()
-    flash(request, f"Matchups mis à jour : patch {data.get('patch', '?')}, {len(data['champions'])} champions, {len(sources)} source(s).")
+    MU[role] = analysis.load_matchups(role)
+    CHAMPIONS = {k: v for d in MU.values() for k, v in d["champions"].items()}
+    flash(request, f"Matchups {analysis.ROLES[role]['label']} mis à jour : patch {data.get('patch', '?')}, {len(data['champions'])} champions, {len(sources)} source(s).")
     return go("/admin")
 
 

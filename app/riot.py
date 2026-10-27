@@ -154,9 +154,16 @@ def solo_rank(pid, region):
     return None, None, None
 
 
-def parse_game(m, timeline, pid):
+def frame_at(timeline, minute):
+    """Relevé de la chronologie à la minute donnée (un relevé par minute), ou None si la partie a fini avant."""
+    frames = timeline["info"]["frames"] if timeline else []
+    return frames[minute] if len(frames) > minute else None
+
+
+def parse_game(m, timeline, pid, position="JUNGLE"):
     """Transforme une partie Match-V5 et sa chronologie en ligne de la table games.
-    Renvoie (game, raison) : game vaut None si la partie est ignorée (remake, pas jungler)."""
+    position : JUNGLE ou BOTTOM selon le rôle suivi par le compte.
+    Renvoie (game, raison) : game vaut None si la partie est ignorée (remake, autre rôle)."""
     info = m["info"]
     me = next((p for p in info["participants"] if p["puuid"] == pid), None)
     if not me:
@@ -164,10 +171,10 @@ def parse_game(m, timeline, pid):
     duration = info["gameDuration"] if "gameEndTimestamp" in info else info["gameDuration"] / 1000
     if duration < 300 or me.get("gameEndedInEarlySurrender"):
         return None, "remake"
-    if me.get("teamPosition") != "JUNGLE":
-        return None, "pas en jungle"
+    if me.get("teamPosition") != position:
+        return None, "autre rôle"
     team = me["teamId"]
-    enemy = next((p for p in info["participants"] if p["teamId"] != team and p.get("teamPosition") == "JUNGLE"), None)
+    enemy = next((p for p in info["participants"] if p["teamId"] != team and p.get("teamPosition") == position), None)
 
     team_kills = sum(p["kills"] for p in info["participants"] if p["teamId"] == team)
     kp = me.get("challenges", {}).get("killParticipation")
@@ -181,6 +188,21 @@ def parse_game(m, timeline, pid):
                            and e.get("victimId") == me["participantId"] and e["timestamp"] < 15 * 60 * 1000)
         allies = [p["participantId"] for p in info["participants"] if p["teamId"] == team]
         obj_lost = lost_objectives(timeline, team, allies)
+
+    # Part des dégâts infligés aux champions dans l'équipe
+    share = me.get("challenges", {}).get("teamDamagePercentage")
+    if share is None:
+        team_dmg = sum(p.get("totalDamageDealtToChampions", 0) for p in info["participants"] if p["teamId"] == team)
+        share = me.get("totalDamageDealtToChampions", 0) / team_dmg if team_dmg else None
+    # CS à 10 min et écart d'or à 15 min face à l'adversaire du même poste, depuis les relevés de la chronologie
+    cs10 = gd15 = None
+    f10, f15 = frame_at(timeline, 10), frame_at(timeline, 15)
+    mine = str(me["participantId"])
+    if f10 and mine in f10.get("participantFrames", {}):
+        pf = f10["participantFrames"][mine]
+        cs10 = pf.get("minionsKilled", 0) + pf.get("jungleMinionsKilled", 0)
+    if f15 and enemy and mine in f15.get("participantFrames", {}) and str(enemy["participantId"]) in f15["participantFrames"]:
+        gd15 = f15["participantFrames"][mine].get("totalGold", 0) - f15["participantFrames"][str(enemy["participantId"])].get("totalGold", 0)
 
     start = info.get("gameStartTimestamp") or info["gameCreation"]
     return {
@@ -196,4 +218,7 @@ def parse_game(m, timeline, pid):
         "cs_min": round((me.get("totalMinionsKilled", 0) + me.get("neutralMinionsKilled", 0)) / (duration / 60), 1),
         "control_wards": me.get("visionWardsBoughtInGame"),
         "obj_lost_free": obj_lost if timeline else None,
+        "cs10": cs10,
+        "gd15": gd15,
+        "dmg_share": round(100 * share) if share is not None else None,
     }, None

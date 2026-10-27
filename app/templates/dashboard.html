@@ -1,10 +1,6 @@
 {% extends "base.html" %}
 {% from "_macros.html" import icon, match_compact %}
 {% block title %}Tableau de bord · League Coach{% endblock %}
-{% macro fmt(row) -%}
-{%- if row.value is none -%}—{%- elif row.unit == '%' -%}{{ (row.value)|fr(0) }} %{%- else -%}{{ (row.value)|fr }}{%- endif -%}
-{%- endmacro %}
-{% macro target(r) -%}{{ ('≥ ' if r.higher else '≤ ') ~ (r.target|string).replace('.', ',') }}{{ ' %' if r.unit == '%' }}{%- endmacro %}
 {% block content %}
 {% set slug = account.riot_id.replace('#','-') %}
 {% set name, _, tag = account.riot_id.partition('#') %}
@@ -12,7 +8,7 @@
 <header class="profile">
   <div class="pf-icon">
     {% if main_champ %}<img src="{{ champ_icon(main_champ) }}" alt="" onerror="this.style.visibility='hidden'">{% else %}<span class="ph" style="display:block"></span>{% endif %}
-    <span class="role">JUNGLE</span>
+    <span class="role">{{ ROLE.short }}</span>
   </div>
   <div class="pf-main">
     <div class="pf-name">{{ name }} <span class="tag">#{{ tag }}</span></div>
@@ -94,7 +90,7 @@
     <section class="panel">
       <div class="panel-h"><h2>Draft rapide</h2></div>
       <form method="get" action="/counters" class="inline">
-        <label class="field" style="flex:1;min-width:150px"><span>Jungler adverse</span>
+        <label class="field" style="flex:1;min-width:150px"><span>{{ ROLE.enemy }}</span>
           <select name="enemy" id="q-enemy">{% for c in all_champs %}<option value="{{ c }}">{{ champ_name(c) }}</option>{% endfor %}</select></label>
         <button class="btn" type="submit">Counter</button>
       </form>
@@ -131,11 +127,10 @@
       {% if metrics.games %}
       <div class="weak">
         {% for r in weak %}
-        {% set pct = 0 if r.value is none else ((r.value / r.target) if r.higher else (r.target / r.value if r.value else 1)) %}
         <div class="wrow">
           <span>{{ r.label }}</span>
-          <span class="bar" aria-hidden="true"><i class="{{ r.status }}" style="width:{{ [pct, 1]|min * 100 }}%"></i></span>
-          <span class="val"><b>{{ fmt(r) }}</b> <span class="dim small">{{ target(r) }}</span>
+          <span class="bar" aria-hidden="true"><i class="{{ r.status }}" style="width:{{ (r.pct or 0) * 100 }}%"></i></span>
+          <span class="val"><b>{{ r.display }}</b> <span class="dim small">{{ r.target_txt }}</span>
             {% if r.status %}<span class="pill {{ r.status }}">{{ {'good':'OK','warn':'Proche','bad':'À travailler'}[r.status] }}</span>{% endif %}</span>
         </div>
         {% endfor %}
@@ -147,8 +142,9 @@
 
     {% if metrics.games %}
     <section class="charts two" aria-label="Courbes">
-      <div class="panel"><div class="panel-h"><h3>Participation aux kills</h3><span class="dim small">cible 60 %</span></div>{{ charts.kp|safe or '<div class="empty">Pas assez de données.</div>'|safe }}</div>
-      <div class="panel"><div class="panel-h"><h3>Morts par partie</h3><span class="dim small">cible 4,5</span></div>{{ charts.deaths|safe or '<div class="empty">Pas assez de données.</div>'|safe }}</div>
+      {% for title, caption, svg in charts %}
+      <div class="panel"><div class="panel-h"><h3>{{ title }}</h3><span class="dim small">{{ caption }}</span></div>{{ svg|safe or '<div class="empty">Pas assez de données.</div>'|safe }}</div>
+      {% endfor %}
     </section>
 
     <div class="cols">

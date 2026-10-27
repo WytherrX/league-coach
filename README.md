@@ -1,17 +1,18 @@
 # League Coach
 
-Application web auto-hébergée pour progresser en **jungle** sur League of Legends. Elle importe tes parties classées depuis l'API Riot, repère tes points faibles, te fixe un objectif concret pour la partie suivante et t'aide à choisir le bon counter en draft selon ton propre champion pool.
+Application web auto-hébergée pour progresser en **jungle** et en **ADC** sur League of Legends. Elle importe tes parties classées depuis l'API Riot, repère tes points faibles, te fixe un objectif concret pour la partie suivante et t'aide à choisir le bon counter en draft selon ton propre champion pool.
 
 Interface en français, multi-utilisateur, un seul conteneur Docker.
 
 ## Fonctionnalités
 
-- **Import automatique des parties** via l'API officielle de Riot : KDA, participation aux kills, CS/min, control wards, morts avant 15 minutes, objectifs perdus sans combat, rang et LP gagnés ou perdus. La saisie manuelle reste possible sans clé API.
+- **Deux rôles : jungle et ADC.** Chaque compte suit un rôle, qui décide des indicateurs, des cibles, des exercices, du champion pool et des counters. Pour suivre les deux rôles avec le même Riot ID, ajoute-le deux fois.
+- **Import automatique des parties** via l'API officielle de Riot : KDA, participation aux kills, CS/min, control wards, morts avant 15 minutes, rang et LP gagnés ou perdus. En jungle, les objectifs perdus sans combat. En ADC, le CS à 10 minutes, l'écart d'or à 15 minutes face à l'ADC adverse et la part des dégâts de l'équipe. La saisie manuelle reste possible sans clé API.
 - **Points faibles** : indicateurs calculés sur les 10, 20 ou 50 dernières parties et comparés à des cibles de niveau Diamant.
 - **Objectif par partie** : un exercice concret sur ton point faible principal. Après la partie, tu notes si tu l'as tenu et une leçon.
 - **Évolution des LP** : courbe sur les dernières parties, avec les divisions en fond et le détail de chaque partie au survol.
 - **Champion pool** : ton aisance de 1 à 5 sur chaque champion. Le nombre de parties et le bilan viennent de tes parties enregistrées.
-- **Counters** : face à un jungler adverse, tes champions sont classés par un score combinant le winrate du matchup (moyenne d'op.gg, u.gg et lolalytics), ton bilan personnel sur ce matchup et ton aisance. Bans conseillés et meilleurs counters hors de ton pool.
+- **Counters** : face au jungler ou à l'ADC adverse, tes champions sont classés par un score combinant le winrate du matchup (moyenne d'op.gg, u.gg et lolalytics), ton bilan personnel sur ce matchup et ton aisance. Bans conseillés et meilleurs counters hors de ton pool.
 - **Plusieurs comptes LoL par utilisateur**, plusieurs utilisateurs par instance. Le premier inscrit devient administrateur.
 
 Stack : Python 3.12, FastAPI, Jinja2, SQLite. Pages rendues côté serveur, sans framework JavaScript.
@@ -86,14 +87,17 @@ source .env && curl -s -H "X-Riot-Token: $RIOT_API_KEY" "https://europe.api.riot
 
 Une réponse contenant `"puuid"` confirme que la clé fonctionne.
 
-L'appli synchronise chaque compte toutes les `SYNC_MINUTES` minutes et à l'ajout d'un compte, où elle importe les 50 dernières parties classées. Le bouton **Synchroniser** des pages Parties et Comptes lance aussi une synchronisation. Seules les parties **classées solo/duo jouées en jungle** sont importées. Les remakes sont ignorés.
+L'appli synchronise chaque compte toutes les `SYNC_MINUTES` minutes et à l'ajout d'un compte, où elle importe les 50 dernières parties classées. Le bouton **Synchroniser** des pages Parties et Comptes lance aussi une synchronisation. Seules les parties **classées solo/duo jouées dans le rôle du compte** sont importées : poste `JUNGLE` ou `BOTTOM` selon Riot. Les remakes sont ignorés.
 
 | Donnée | Calcul |
 | --- | --- |
-| Champion, jungler adverse, résultat, K/D/A | Résultat de la partie (Match-V5) |
+| Champion, adversaire du même poste, résultat, K/D/A | Résultat de la partie (Match-V5) |
 | Participation aux kills, CS/min, control wards | Statistiques de fin de partie |
 | Morts avant 15 min | Chronologie de la partie |
 | Objectifs perdus sans combat | Dragon, vague de larves, héraut, Baron ou Atakhan pris par l'adversaire, sans kill à moins de 3 000 unités du pit entre 30 s avant et 15 s après, et sans allié près du pit aux relevés de positions qui encadrent la prise (Riot en fournit un par minute). C'est une estimation. |
+| CS à 10 min (ADC) | Relevé de la chronologie à 10:00 : sbires et monstres tués |
+| Écart d'or à 15 min (ADC) | Relevé de la chronologie à 15:00 : ton or total moins celui de l'adversaire du même poste |
+| Part des dégâts (ADC) | `teamDamagePercentage` de Riot, ou tes dégâts aux champions divisés par ceux de ton équipe |
 | Rang et LP | League-V4, relevé à chaque synchronisation |
 | LP gagnés ou perdus | Écart entre deux relevés, attribué à une partie seulement si une seule partie classée a été jouée entre les deux. Promotions et rétrogradations comprises. |
 
@@ -101,19 +105,37 @@ Riot ne fournit pas l'historique des LP : les LP par partie et la courbe se remp
 
 Une partie déjà saisie à la main n'est pas dupliquée : l'import la complète et conserve l'objectif et la leçon. Une partie importée puis supprimée n'est pas réimportée. Les requêtes respectent les limites de débit d'une clé personnelle, soit 20 par seconde et 100 toutes les 2 minutes.
 
+## Indicateurs et cibles par rôle
+
+| Indicateur | Jungle | ADC |
+| --- | --- | --- |
+| CS par minute | ≥ 6,5 | ≥ 8 |
+| CS à 10 min | — | ≥ 80 |
+| Écart d'or à 15 min | — | ≥ 0 |
+| Morts par partie | ≤ 4,5 | ≤ 4 |
+| Morts avant 15 min | ≤ 1,5 | ≤ 1 |
+| Participation aux kills | ≥ 60 % | ≥ 50 % |
+| Part des dégâts de l'équipe | — | ≥ 27 % |
+| Control wards | ≥ 2 | ≥ 1,5 |
+| Objectifs perdus sans combat | ≤ 1 | — |
+| Parties sur ton pool | ≥ 80 % | ≥ 80 % |
+
+Les cibles, les exercices et les plans de jeu sont dans [`app/analysis.py`](app/analysis.py) (`JUNGLE` et `ADC`). Ajouter un rôle revient à y décrire un dictionnaire de plus et à fournir son fichier de matchups.
+
 ## Données de counters
 
-Les winrates de matchups sont dans [`app/data/matchups.json`](app/data/matchups.json) : 59 junglers, rangs Émeraude et plus, patch 26.21, trois sources.
+Les winrates de matchups sont dans `app/data`, un fichier par rôle, collectés sur trois sources pour les rangs Émeraude et plus, patch 26.21.
 
-| Source | Matchups | Remarque |
-| --- | --- | --- |
-| op.gg | 3 242 | Parties et victoires brutes |
-| u.gg | 3 422 | Parties et victoires brutes |
-| lolalytics | 2 837 | Masque les matchups sous 100 parties. Ses winrates surestiment d'environ 1,7 point le champion de la page : la moyenne des deux sens de lecture corrige ce biais. |
+| Fichier | Champions | op.gg | u.gg | lolalytics |
+| --- | --- | --- | --- | --- |
+| [`matchups.json`](app/data/matchups.json) (jungle, jungler contre jungler) | 59 | 3 242 | 3 422 | 2 837 |
+| [`matchups-adc.json`](app/data/matchups-adc.json) (ADC, ADC contre ADC en bot) | 28 | 756 | 756 | 754 |
+
+op.gg et u.gg donnent des parties et des victoires brutes. lolalytics masque les matchups sous 100 parties, et ses winrates surestiment d'environ 1,7 point le champion de la page, dans les deux rôles : la moyenne des deux sens de lecture corrige ce biais. Les ADC retenus sont ceux qu'u.gg compte au moins 800 fois face à Jinx en bot, ce qui inclut les picks bot hors ADC classiques (Ziggs, Veigar, Yasuo…).
 
 Pour chaque matchup, l'appli fait la moyenne des sources qui ont au moins 100 parties. Elle indique « sources d'accord » quand l'écart entre elles reste sous 3 points.
 
-Pour un nouveau patch, un administrateur importe un fichier depuis la page **Admin**. Le fichier est conservé dans le volume de données et remplace celui du dépôt. Format attendu :
+Pour un nouveau patch, un administrateur importe un fichier depuis la page **Admin**, en choisissant le rôle. Le fichier est conservé dans le volume de données et remplace celui du dépôt pour ce rôle. Format attendu :
 
 ```json
 {
@@ -170,7 +192,7 @@ SECRET_KEY=$(openssl rand -hex 32) COOKIE_SECURE=false DB_PATH=./dev.db uvicorn 
 | --- | --- |
 | `app/main.py` | Routes, sessions, rendu des pages |
 | `app/db.py` | Schéma SQLite, migrations, mots de passe (scrypt) |
-| `app/analysis.py` | Indicateurs, objectifs, counters, graphiques SVG |
+| `app/analysis.py` | Rôles (indicateurs, cibles, exercices, plans de jeu), counters, graphiques SVG |
 | `app/riot.py` | Client de l'API Riot et extraction des données d'une partie |
 | `app/sync.py` | Synchronisation en tâche de fond |
 | `app/templates/`, `app/static/` | Pages Jinja2 et feuille de style |

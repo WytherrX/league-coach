@@ -15,7 +15,7 @@ RUNNING = set()                        # comptes en cours de synchronisation, po
 log = logging.getLogger("uvicorn.error")
 
 STAT_COLS = ["played_on", "played_at", "champ", "enemy", "result", "kills", "deaths", "assists",
-             "deaths_pre15", "kp", "cs_min", "control_wards", "obj_lost_free"]
+             "deaths_pre15", "kp", "cs_min", "control_wards", "obj_lost_free", "cs10", "gd15", "dmg_share"]
 
 
 def save_game(con, account_id, g):
@@ -72,12 +72,12 @@ def sync_account(account_id):
             m, timeline = riot.match(mid, acc["region"])
             if not m:
                 continue
-            game, _ = riot.parse_game(m, timeline, pid)
+            game, _ = riot.parse_game(m, timeline, pid, analysis.ROLES[analysis.role_of(acc)]["position"])
             with db.connect() as con:
                 if game:
                     save_game(con, account_id, game)
                     added += 1
-                else:   # remake ou partie hors jungle : on ne la relit plus
+                else:   # remake ou partie sur un autre rôle : on ne la relit plus
                     con.execute("INSERT OR IGNORE INTO skipped (account_id, match_id) VALUES (?, ?)", (account_id, mid))
         div, lp, total = riot.solo_rank(pid, acc["region"])
         with db.connect() as con:

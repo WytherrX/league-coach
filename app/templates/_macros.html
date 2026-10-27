@@ -11,7 +11,7 @@
 <input type="search" placeholder="{{ label }}" aria-label="{{ label }}" data-filter="{{ target }}" autocomplete="off"></label>
 {%- endmacro %}
 
-{% macro match_card(g, delete=False, default_focus=None) %}
+{% macro match_card(g, delete=False, default_focus=None, drills={}, role="jungle") %}
 {% set r, rc = kda(g.kills, g.deaths, g.assists) %}
 <article class="match {{ g.result }}" id="g{{ g.id }}">
   <div class="res"><b>{{ 'Victoire' if g.result == 'W' else 'Défaite' }}</b><span>{{ g.played_on[8:10] }}/{{ g.played_on[5:7] }}/{{ g.played_on[2:4] }}</span>{% if g.lp_change is not none %}<span class="lpd {{ 'up' if g.lp_change >= 0 else 'down' }}">{{ '+' if g.lp_change >= 0 }}{{ g.lp_change|string|replace('-', '−') }} LP</span>{% endif %}</div>
@@ -23,8 +23,13 @@
   <div class="st">
     <span>KP <b>{{ (g.kp ~ ' %') if g.kp is not none else '–' }}</b></span>
     <span>CS/min <b>{{ (g.cs_min|fr) if g.cs_min is not none else '–' }}</b></span>
+    {% if role == 'adc' %}
+    <span>CS 10' <b>{{ g.cs10 if g.cs10 is not none else '–' }}</b></span>
+    <span>Or 15' <b style="color:var(--{{ 'win' if (g.gd15 or 0) >= 0 else 'loss' }})">{{ ('%+d'|format(g.gd15)).replace('-', '−') if g.gd15 is not none else '–' }}</b></span>
+    {% else %}
     <span>Morts &lt;15 <b>{{ g.deaths_pre15 if g.deaths_pre15 is not none else '–' }}</b></span>
     <span>Pinks <b>{{ g.control_wards if g.control_wards is not none else '–' }}</b></span>
+    {% endif %}
   </div>
   <div class="vs">{% if g.enemy %}<span>contre</span>{{ icon(g.enemy, 'sm round') }}<span>{{ champ_name(g.enemy) }}</span>{% endif %}</div>
   <div class="side">
@@ -37,7 +42,7 @@
     <span class="pill warn">À compléter</span>
     <select name="focus" aria-label="Objectif travaillé">
       <option value="">Aucun objectif</option>
-      {% for cat, ds in DRILLS.items() %}{% for d in ds %}<option value="{{ d[0] }}" {{ 'selected' if d[0] == default_focus }}>{{ d[1] }}</option>{% endfor %}{% endfor %}
+      {% for cat, ds in drills.items() %}{% for d in ds %}<option value="{{ d[0] }}" {{ 'selected' if d[0] == default_focus }}>{{ d[1] }}</option>{% endfor %}{% endfor %}
     </select>
     <div class="radio" role="radiogroup" aria-label="Objectif tenu">
       <label><input type="radio" name="focus_ok" value="1"><span class="n">Tenu</span></label>

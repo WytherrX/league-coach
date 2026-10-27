@@ -9,7 +9,7 @@
 {% endmacro %}
 {% block content %}
 <div class="page-h">
-  <div><span class="label">{{ account.riot_id }} · jungle</span><h1>Champion pool</h1></div>
+  <div><span class="label">{{ account.riot_id }} · {{ ROLE.label }}</span><h1>Champion pool</h1></div>
   <span class="dim small">Winrates du patch {{ mu.patch }} ({{ mu.tier }}) : {{ mu.source_list|map(attribute=1)|join(', ') }}</span>
 </div>
 

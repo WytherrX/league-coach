@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS accounts (
     rank_div TEXT,
     rank_lp INTEGER,
     goal_div TEXT,
+    role TEXT NOT NULL DEFAULT 'jungle',
     puuid TEXT,
     synced_at TEXT,
     sync_error TEXT,
@@ -61,6 +62,9 @@ CREATE TABLE IF NOT EXISTS games (
     played_at INTEGER,
     reviewed INTEGER NOT NULL DEFAULT 1,
     lp_change INTEGER,
+    cs10 INTEGER,
+    gd15 INTEGER,
+    dmg_share INTEGER,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS games_account ON games(account_id, played_on);
@@ -97,7 +101,8 @@ def init():
             """)
         con.executescript(SCHEMA)
         # colonnes ajoutées pour la synchronisation Riot
-        for table, col, decl in [("users", "session_version", "INTEGER NOT NULL DEFAULT 0"), ("accounts", "puuid", "TEXT"), ("accounts", "synced_at", "TEXT"), ("accounts", "sync_error", "TEXT"),
+        for table, col, decl in [("users", "session_version", "INTEGER NOT NULL DEFAULT 0"), ("accounts", "role", "TEXT NOT NULL DEFAULT 'jungle'"),
+                                 ("games", "cs10", "INTEGER"), ("games", "gd15", "INTEGER"), ("games", "dmg_share", "INTEGER"), ("accounts", "puuid", "TEXT"), ("accounts", "synced_at", "TEXT"), ("accounts", "sync_error", "TEXT"),
                                  ("accounts", "sync_added", "INTEGER"), ("accounts", "ranked_games", "INTEGER"), ("accounts", "lp_value", "INTEGER"), ("accounts", "lp_match", "TEXT"), ("games", "lp_change", "INTEGER"), ("games", "match_id", "TEXT"), ("games", "played_at", "INTEGER"),
                                  ("games", "reviewed", "INTEGER NOT NULL DEFAULT 1")]:
             if col not in [r["name"] for r in con.execute(f"PRAGMA table_info({table})")]:

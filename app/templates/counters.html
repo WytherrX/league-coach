@@ -11,20 +11,20 @@
 
 {% if bans %}
 <section class="panel">
-  <div class="panel-h"><h2>Bans conseillés pour ton pool</h2><span class="dim small">winrate moyen de ton pool contre ce jungler, pondéré par ton aisance</span></div>
+  <div class="panel-h"><h2>Bans conseillés pour ton pool</h2><span class="dim small">winrate moyen de ton pool contre cet adversaire, pondéré par ton aisance</span></div>
   <div class="chips">{% for e, wr in bans %}<a class="chip" href="/counters?enemy={{ e }}">{{ icon(e) }}{{ champ_name(e) }} <span class="{{ wr_class(wr) }} num">{{ (wr)|fr }} %</span></a>{% endfor %}</div>
 </section>
 {% endif %}
 
 <section class="panel">
   <div class="panel-h">
-    <h2>Quel jungler en face ?</h2>
+    <h2>{{ ROLE.enemy_q }}</h2>
     {{ search('#enemy-grid') }}
   </div>
   <div class="tiles" id="enemy-grid">
     {% for c in champs %}<a class="ccard" data-n="{{ champ_name(c) }} {{ c }}" href="/counters?enemy={{ c }}"><img src="{{ champ_icon(c) }}" alt="" loading="lazy" onerror="this.style.visibility='hidden'"><span>{{ champ_name(c) }}</span></a>{% endfor %}
   </div>
-  <div class="none" id="enemy-grid-none" hidden>Aucun jungler ne correspond.</div>
+  <div class="none" id="enemy-grid-none" hidden>Aucun champion ne correspond.</div>
 </section>
 
 {% else %}
@@ -32,8 +32,8 @@
 <section class="versus">
   <div class="who">
     {{ icon(enemy, 'xl') }}
-    <div><span class="label">Jungler adverse</span><div class="big">{{ champ_name(enemy) }}</div>
-      {% if enemy in early %}<span class="pill warn">Jungler early agressif</span>{% else %}<span class="pill">Jungler de tempo / scaling</span>{% endif %}</div>
+    <div><span class="label">{{ ROLE.enemy }}</span><div class="big">{{ champ_name(enemy) }}</div>
+      {% if enemy in ROLE.aggressive %}<span class="pill warn">{{ ROLE.aggr_label }}</span>{% else %}<span class="pill">{{ ROLE.calm_label }}</span>{% endif %}</div>
   </div>
   {% if top %}
   <span class="vs">VS</span>
@@ -86,22 +86,10 @@
     {% else %}<div class="body"><div class="empty">Pas assez de données.</div></div>{% endif %}
   </section>
   <section class="panel">
-    <h2>Plan de début de partie</h2>
-    {% if enemy in early %}
+    <h2>{{ ROLE.plan_title }}</h2>
     <ul>
-      <li>Pas de duel avant ton premier objet.</li>
-      <li>Démarre du côté où tes lanes ont la priorité.</li>
-      <li>Ward ton buff ou ta deuxième entrée vers 3:00.</li>
-      <li>S'il gank une lane, contre-gank ou prends ses camps de l'autre côté.</li>
+      {% for step in (ROLE.plan_aggr if enemy in ROLE.aggressive else ROLE.plan_calm) %}<li>{{ step }}</li>{% endfor %}
     </ul>
-    {% else %}
-    <ul>
-      <li>Repère son côté de départ au leash et anticipe son premier gank.</li>
-      <li>S'il veut farmer et scaler, force-le à jouer autour de tes ganks.</li>
-      <li>Invade son deuxième camp quand tes lanes du côté ont la priorité.</li>
-      <li>Prépare le premier objectif 90 secondes avant son apparition.</li>
-    </ul>
-    {% endif %}
   </section>
 </div>
 {% endif %}

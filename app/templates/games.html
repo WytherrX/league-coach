@@ -3,7 +3,7 @@
 {% block title %}Parties · League Coach{% endblock %}
 {% macro champ_options(selected) %}
   {% if pool_sorted %}<optgroup label="Ton pool">{% for c in pool_sorted %}<option value="{{ c }}" {{ 'selected' if c == selected }}>{{ champ_name(c) }}</option>{% endfor %}</optgroup>{% endif %}
-  <optgroup label="Tous les junglers">{% for c in champs %}{% if c not in pool_sorted %}<option value="{{ c }}">{{ champ_name(c) }}</option>{% endif %}{% endfor %}</optgroup>
+  <optgroup label="{{ ROLE.champs_label }}">{% for c in champs %}{% if c not in pool_sorted %}<option value="{{ c }}">{{ champ_name(c) }}</option>{% endif %}{% endfor %}</optgroup>
 {% endmacro %}
 {% block content %}
 {% set wins = games|selectattr('result', 'equalto', 'W')|list|length %}
@@ -32,7 +32,7 @@
   <form method="post" action="/games" class="form" {{ 'style=margin-top:12px' if RIOT }}>
     <label class="field"><span>Date</span><input type="date" name="played_on" id="played_on" value="{{ today }}" required></label>
     <label class="field"><span>Ton champion</span><select name="champ" id="champ">{{ champ_options(pool_sorted[0] if pool_sorted else None) }}</select></label>
-    <label class="field s2"><span>Jungler adverse</span><select name="enemy" id="enemy"><option value="">—</option>{% for c in champs %}<option value="{{ c }}">{{ champ_name(c) }}</option>{% endfor %}</select></label>
+    <label class="field s2"><span>{{ ROLE.enemy }}</span><select name="enemy" id="enemy"><option value="">—</option>{% for c in champs %}<option value="{{ c }}">{{ champ_name(c) }}</option>{% endfor %}</select></label>
     <div class="field s2"><span>Résultat</span>
       <div class="radio" role="radiogroup" aria-label="Résultat">
         <label><input type="radio" name="result" value="W" id="res_w" checked><span class="w">Victoire</span></label>
@@ -44,7 +44,10 @@
     <label class="field"><span>Participation (%)</span><input type="number" name="kp" id="kp" min="0" max="100" inputmode="numeric"></label>
     <label class="field"><span>CS / min</span><input type="number" name="cs_min" id="cs_min" min="0" max="15" step="0.1" inputmode="decimal"></label>
     <label class="field"><span>Control wards</span><input type="number" name="control_wards" id="control_wards" min="0" inputmode="numeric"></label>
-    <label class="field s2"><span>Objectifs perdus sans combat</span><input type="number" name="obj_lost_free" id="obj_lost_free" min="0" inputmode="numeric" placeholder="Dragons, grubs, Baron cédés sans contest"></label>
+    {% if 'obj_lost_free' in ROLE.form %}<label class="field s2"><span>Objectifs perdus sans combat</span><input type="number" name="obj_lost_free" id="obj_lost_free" min="0" inputmode="numeric" placeholder="Dragons, grubs, Baron cédés sans contest"></label>{% endif %}
+    {% if 'cs10' in ROLE.form %}<label class="field"><span>CS à 10 min</span><input type="number" name="cs10" id="cs10" min="0" max="200" inputmode="numeric"></label>
+    <label class="field"><span>Écart d'or à 15 min</span><input type="number" name="gd15" id="gd15" min="-10000" max="10000" inputmode="numeric" placeholder="ex. -350"></label>
+    <label class="field"><span>Part des dégâts (%)</span><input type="number" name="dmg_share" id="dmg_share" min="0" max="100" inputmode="numeric"></label>{% endif %}
 
     <div class="s6 focus" style="padding:14px">
       <div class="panel-h"><span class="label">Objectif travaillé pendant cette partie</span>{% if focus.reason %}<span class="muted small">Point faible visé : {{ focus.reason }}</span>{% endif %}</div>
@@ -52,7 +55,7 @@
         <label class="field"><span>Objectif</span>
           <select name="focus" id="focus">
             <option value="">Aucun</option>
-            {% for cat, ds in DRILLS.items() %}{% for d in ds %}<option value="{{ d[0] }}" {{ 'selected' if d[0] == focus.id }}>{{ d[1] }}</option>{% endfor %}{% endfor %}
+            {% for cat, ds in ROLE.drills.items() %}{% for d in ds %}<option value="{{ d[0] }}" {{ 'selected' if d[0] == focus.id }}>{{ d[1] }}</option>{% endfor %}{% endfor %}
           </select></label>
         <div class="field"><span>Objectif tenu ?</span>
           <div class="radio" role="radiogroup" aria-label="Objectif tenu">
@@ -77,9 +80,9 @@
     <span class="small"><b data-count>0</b> sélectionnée(s)</span>
     <button class="btn danger" type="submit" disabled>Supprimer la sélection</button>
   </form>
-  <div class="matches">{% for g in games %}{{ match_card(g, delete=True, default_focus=focus.id) }}{% endfor %}</div>
+  <div class="matches">{% for g in games %}{{ match_card(g, delete=True, default_focus=focus.id, drills=ROLE.drills, role=role) }}{% endfor %}</div>
   {% else %}
-  <div class="empty">{% if RIOT %}Aucune partie classée en jungle importée pour l'instant. Lance une synchronisation ou attends quelques minutes.{% else %}Aucune partie pour l'instant. Après ta prochaine partie, remplis le formulaire ci-dessus : ton tableau de bord se calcule à partir d'ici.{% endif %}</div>
+  <div class="empty">{% if RIOT %}Aucune partie classée {{ "en jungle" if role == "jungle" else "en " ~ ROLE.label }} importée pour l'instant. Lance une synchronisation ou attends quelques minutes.{% else %}Aucune partie pour l'instant. Après ta prochaine partie, remplis le formulaire ci-dessus : ton tableau de bord se calcule à partir d'ici.{% endif %}</div>
   {% endif %}
 </section>
 {% endblock %}
