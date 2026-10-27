@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import icon, match_compact %}
+{% from "_macros.html" import icon, match_compact, chart, chart_legend %}
 {% block title %}Tableau de bord · League Coach{% endblock %}
 {% block content %}
 {% set slug = account.riot_id.replace('#','-') %}
@@ -34,7 +34,7 @@
       <span><span class="label">Actuel</span><b class="{{ tier_class(lp.last.rank_div) }}"><span class="tier-txt">{{ rank_label(lp.last.rank_div, lp.last.rank_lp) }}</span></b></span>
     </div>{% endif %}
   </div>
-  {% if lp %}<div class="lp-wrap">{{ lp.svg|safe }}</div>
+  {% if lp %}{{ chart(lp.chart, 280, lp=True, label="Évolution des LP") }}{{ chart_legend(avg=False, target=False, lp=True) }}
   {% else %}<div class="empty">{% if RIOT %}La courbe apparaît après deux parties synchronisées : le rang est relevé après chaque partie classée.{% else %}Indique ton rang après tes parties dans <a href="/games">Parties</a> pour tracer la courbe.{% endif %}</div>{% endif %}
 </section>
 
@@ -142,8 +142,11 @@
 
     {% if metrics.games %}
     <section class="charts two" aria-label="Courbes">
-      {% for title, caption, svg in charts %}
-      <div class="panel"><div class="panel-h"><h3>{{ title }}</h3><span class="dim small">{{ caption }}</span></div>{{ svg|safe or '<div class="empty">Pas assez de données.</div>'|safe }}</div>
+      {% for title, c in charts %}
+      <div class="panel">
+        <div class="panel-h"><h3>{{ title }}</h3>{% if c %}<span class="chart-kpi"><span class="dim small">moyenne</span> <b>{{ c.mean }}</b></span>{% endif %}</div>
+        {% if c %}{{ chart(c, 190, label=title) }}{{ chart_legend(avg=c.avg is not none) }}{% else %}<div class="empty">Pas assez de données.</div>{% endif %}
+      </div>
       {% endfor %}
     </section>
 

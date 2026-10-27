@@ -28,7 +28,7 @@ JUNGLE = {
                   "Ward ton buff ou ta deuxième entrée vers 3:00.", "S'il gank une lane, contre-gank ou prends ses camps de l'autre côté."],
     "plan_calm": ["Repère son côté de départ au leash et anticipe son premier gank.", "S'il veut farmer et scaler, force-le à jouer autour de tes ganks.",
                   "Invade son deuxième camp quand tes lanes du côté ont la priorité.", "Prépare le premier objectif 90 secondes avant son apparition."],
-    "charts": [("kp", "Participation aux kills", 60, 20, 90, "cible 60 %"), ("deaths", "Morts par partie", 4.5, 0, 12, "cible 4,5")],
+    "charts": [("kp", "Participation aux kills", 60, "%", "de participation"), ("deaths", "Morts par partie", 4.5, "", "morts")],
     "form": ["obj_lost_free"],
     "metrics": [
         ("kp", "Participation aux kills", "%", 60, 55, True),
@@ -88,7 +88,7 @@ ADC = {
                   "Frappe-le à chaque fois qu'il va chercher un sbire.",
                   "Pousse pour les plaques et le premier back avec avance d'or.",
                   "Garde la priorité de vague 60 s avant chaque dragon."],
-    "charts": [("cs_min", "CS par minute", 8.0, 4, 11, "cible 8"), ("deaths", "Morts par partie", 4.0, 0, 12, "cible 4")],
+    "charts": [("cs_min", "CS par minute", 8.0, "", "CS/min"), ("deaths", "Morts par partie", 4.0, "", "morts")],
     "form": ["cs10", "gd15", "dmg_share"],
     "metrics": [
         ("cs_min", "CS par minute", "", 8.0, 7.2, True),
@@ -374,27 +374,86 @@ def hard_matchups(games, min_games=2):
     return sorted(rows, key=lambda r: (r[2] / r[1], -r[1]))
 
 
-def sparkline(values, target=None, lo=None, hi=None, w=320, h=120):
-    pts = [v for v in values if v is not None]
-    if len(pts) < 2:
-        return ""
-    lo = min(pts + ([target] if target is not None else [])) if lo is None else lo
-    hi = max(pts + ([target] if target is not None else [])) if hi is None else hi
-    if hi == lo:
-        hi = lo + 1
-    pad = 10
-    x = lambda i: pad + i * (w - 2 * pad) / (len(pts) - 1)
-    y = lambda v: h - pad - (min(max(v, lo), hi) - lo) / (hi - lo) * (h - 2 * pad)
-    path = " ".join(f"{'M' if i == 0 else 'L'}{x(i):.1f} {y(v):.1f}" for i, v in enumerate(pts))
-    svg = f'<svg viewBox="0 0 {w} {h}" class="spark" role="img">'
-    if target is not None:
-        svg += f'<line class="tg" x1="{pad}" x2="{w - pad}" y1="{y(target):.1f}" y2="{y(target):.1f}"/>'
-    svg += f'<path class="ln" d="{path}"/>'
-    svg += f'<circle class="dot" cx="{x(len(pts) - 1):.1f}" cy="{y(pts[-1]):.1f}" r="4"/></svg>'
-    return svg
-
+# ---------- Graphiques ----------
+# Le tracé est un SVG étiré (coordonnées en %, épaisseur de trait fixe) ; graduations, points et info-bulles
+# sont en HTML positionné en %, pour garder un texte net et lisible à toutes les largeurs d'écran.
 
 TIER_COLORS = ["#8A7E7A", "#B97452", "#A6B4C2", "#F0B232", "#4FB3A9", "#2DBE7A", "#7C8CFF", "#B565F0"]
+
+
+def nice_ticks(lo, hi, n=4):
+    """Graduations rondes (1, 2, 2,5 ou 5 × 10^k) couvrant [lo, hi]."""
+    import math
+    if hi - lo < 1e-9:                 # valeurs toutes égales : on ouvre une plage autour
+        pad = abs(hi) * 0.2 or 1
+        lo, hi = lo - pad, hi + pad
+    span = hi - lo
+    raw = span / n
+    mag = 10 ** math.floor(math.log10(raw))
+    step = next(m * mag for m in (1, 2, 2.5, 5, 10) if m * mag >= raw)
+    start, end = math.floor(lo / step) * step, math.ceil(hi / step) * step
+    ticks, v = [], start
+    while v <= end + step / 1000:
+        ticks.append(round(v, 6))
+        v += step
+    return ticks
+
+
+def num(v, decimals=1):
+    return (f"{v:.{decimals}f}" if decimals else f"{v:.0f}").replace(".", ",").replace("-", "−")
+
+
+def date_fr(d):
+    return f"{d[8:10]}/{d[5:7]}"
+
+
+def x_ticks(games, xs, count=5):
+    """Dates sous l'axe : environ `count` repères répartis, le premier et le dernier toujours présents."""
+    n = len(games)
+    idx = sorted({round(k * (n - 1) / (count - 1)) for k in range(count)}) if n >= count else list(range(n))
+    out = []
+    for j, k in enumerate(idx):
+        anchor = "start" if k == 0 else "end" if k == n - 1 else "mid"
+        # sur petit écran, seules la première, la dernière et la date du milieu restent (classe opt pour les autres)
+        middle = idx[len(idx) // 2]
+        out.append({"x": xs[k], "label": date_fr(games[k]["played_on"]), "anchor": anchor + (" opt" if anchor == "mid" and k != middle else "")})
+    return out
+
+
+def game_caption(g, name):
+    return f"{date_fr(g['played_on'])} · {name(g['champ'])}" + (f" vs {name(g['enemy'])}" if g.get("enemy") else "") + \
+           f" · {'Victoire' if g['result'] == 'W' else 'Défaite'}"
+
+
+def metric_chart(games, key, target, unit, name, label):
+    """Courbe d'un indicateur sur les dernières parties : valeur par partie, moyenne glissante sur 5 parties, cible."""
+    pts = [g for g in games if g.get(key) is not None]
+    if len(pts) < 2:
+        return None
+    vals = [g[key] for g in pts]
+    ticks = nice_ticks(min(vals + [target]), max(vals + [target]))
+    if min(vals + [target]) >= 0:              # morts, CS, pourcentages : jamais de graduation négative
+        ticks = [t for t in ticks if t >= 0] or [0, 1]
+    if unit == "%":
+        ticks = [t for t in ticks if t <= 100]
+    lo, hi = ticks[0], ticks[-1]
+    xs = [3 + 94 * i / (len(pts) - 1) for i in range(len(pts))]
+    y = lambda v: 100 * (hi - v) / (hi - lo)
+    avg = [sum(vals[max(0, i - 4):i + 1]) / len(vals[max(0, i - 4):i + 1]) for i in range(len(vals))]
+    decimals = 1 if unit == "" and any(v != int(v) for v in vals) else 0
+    fmt = lambda v: num(v, decimals) + (" %" if unit == "%" else "")
+    tick_dec = 0 if all(float(t).is_integer() for t in ticks) else 1
+    path = lambda series: " ".join(f"{'M' if i == 0 else 'L'}{xs[i]:.2f},{y(v):.2f}" for i, v in enumerate(series))
+    line = path(vals)
+    return {
+        "yticks": [{"y": y(t), "label": num(t, tick_dec) + (" %" if unit == "%" else "")} for t in ticks],
+        "xticks": x_ticks(pts, xs),
+        "line": line, "area": f"{line} L{xs[-1]:.2f},100 L{xs[0]:.2f},100 Z", "avg": path(avg) if len(vals) >= 5 else None,
+        "target": {"y": y(target), "label": "cible " + f"{target:g}".replace(".", ",") + (" %" if unit == "%" else "")},
+        "points": [{"x": xs[i], "y": y(v), "cls": g["result"], "value": f"{fmt(v)} {label}", "tip": game_caption(g, name)}
+                   for i, (g, v) in enumerate(zip(pts, vals))],
+        "last": fmt(vals[-1]), "mean": num(sum(vals) / len(vals), 0 if unit == "%" else 1) + (" %" if unit == "%" else ""),
+    }
 
 
 def band_label(v):
@@ -405,10 +464,8 @@ def band_label(v):
     return f"{TIERS[v // 400][0]}{4 - (v % 400) // 100}"
 
 
-def lp_chart(games, name, w=1140, h=300):
-    """Courbe des LP façon dpm.lol : une bande par division, couleurs de tier, un point par partie.
-    games : parties chronologiques avec rang renseigné. name : fonction clé -> nom du champion."""
-    from html import escape
+def lp_chart(games, name):
+    """Courbe des LP façon dpm.lol : une bande par division aux couleurs du tier, un point par partie."""
     pts = [(rank_value(g["rank_div"], g["rank_lp"]), g) for g in games if g["rank_div"]]
     if len(pts) < 2:
         return None
@@ -417,39 +474,21 @@ def lp_chart(games, name, w=1140, h=300):
     hi = -(-(max(vals) + 25) // 100) * 100
     if hi - lo < 200:
         hi = lo + 200
-    pl, pr, pt, pb = 40, 12, 10, 28
-    x = lambda i: pl + i * (w - pl - pr) / (len(pts) - 1)
-    y = lambda v: pt + (hi - v) / (hi - lo) * (h - pt - pb)
-    out = [f'<svg viewBox="0 0 {w} {h}" class="lpchart" role="img" aria-label="Évolution des LP">',
-           '<defs><linearGradient id="lpfill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5383E8" stop-opacity=".35"/>'
-           '<stop offset="1" stop-color="#5383E8" stop-opacity="0"/></linearGradient></defs>']
-    for i, b in enumerate(range(lo, hi, 100)):
+    xs = [2 + 96 * i / (len(pts) - 1) for i in range(len(pts))]
+    y = lambda v: 100 * (hi - v) / (hi - lo)
+    bands = []
+    for b in range(lo, hi, 100):
         color = TIER_COLORS[min(b // 400, len(TIER_COLORS) - 1)]
-        out.append(f'<rect x="{pl}" y="{y(b + 100):.1f}" width="{w - pl - pr}" height="{y(b) - y(b + 100):.1f}" fill="{color}" opacity="{0.10 if i % 2 else 0.05}"/>')
-        out.append(f'<text x="{pl - 8}" y="{(y(b) + y(b + 100)) / 2 + 4:.1f}" text-anchor="end" class="ax" fill="{color}">{band_label(b)}</text>')
-        out.append(f'<text x="{w - pr - 8}" y="{(y(b) + y(b + 100)) / 2 + 4:.1f}" text-anchor="end" class="ax r" fill="{color}">{band_label(b)}</text>')
-    for b in range(lo, hi + 1, 100):
-        tier_edge = b % 400 == 0 and b <= len(TIERS) * 400
-        color = TIER_COLORS[min(b // 400, len(TIER_COLORS) - 1)]
-        out.append(f'<line x1="{pl}" x2="{w - pr}" y1="{y(b):.1f}" y2="{y(b):.1f}" stroke="{color if tier_edge else "#2A3249"}" '
-                   f'stroke-width="{1.5 if tier_edge else 1}" opacity="{0.8 if tier_edge else 1}"/>')
-    line = " ".join(f"{'M' if i == 0 else 'L'}{x(i):.1f} {y(v):.1f}" for i, (v, _) in enumerate(pts))
-    out.append(f'<path d="{line} L{x(len(pts) - 1):.1f} {h - pb} L{x(0):.1f} {h - pb} Z" fill="url(#lpfill)"/>')
-    out.append(f'<path d="{line}" fill="none" stroke="#7AA0F0" stroke-width="2.5" stroke-linejoin="round"/>')
+        bands.append({"top": y(b + 100), "height": y(b) - y(b + 100), "color": color, "label": band_label(b),
+                      "mid": (y(b) + y(b + 100)) / 2, "edge": b % 400 == 0 and b <= len(TIERS) * 400, "base": y(b)})
+    line = " ".join(f"{'M' if i == 0 else 'L'}{xs[i]:.2f},{y(v):.2f}" for i, v in enumerate(vals))
+    points = []
     for i, (v, g) in enumerate(pts):
         delta = f" ({g['lp_change']:+d} LP)".replace("-", "−") if g.get("lp_change") is not None else ""
-        tip = (f"{g['played_on'][8:10]}/{g['played_on'][5:7]} · {name(g['champ'])}" + (f" vs {name(g['enemy'])}" if g["enemy"] else "")
-               + f" · {'Victoire' if g['result'] == 'W' else 'Défaite'} · {rank_label(g['rank_div'], g['rank_lp'])}{delta}")
-        out.append(f'<circle cx="{x(i):.1f}" cy="{y(v):.1f}" r="{5 if i == len(pts) - 1 else 4}" class="pt {g["result"]}" data-tip="{escape(tip)}" tabindex="0"/>')
-    step = max(1, (len(pts) - 1) // 5)
-    for i in sorted({*range(0, len(pts), step), len(pts) - 1}):
-        if i != len(pts) - 1 and len(pts) - 1 - i < step / 2:
-            continue
-        d = pts[i][1]["played_on"]
-        anchor = "start" if i == 0 else "end" if i == len(pts) - 1 else "middle"
-        out.append(f'<text x="{x(i):.1f}" y="{h - 8}" text-anchor="{anchor}" class="ax">{d[8:10]}/{d[5:7]}</text>')
-    out.append("</svg>")
-    first, last = pts[0][1], pts[-1][1]
+        points.append({"x": xs[i], "y": y(v), "cls": g["result"], "value": rank_label(g["rank_div"], g["rank_lp"]) + delta,
+                       "tip": game_caption(g, name)})
     peak = max(pts, key=lambda p: p[0])[1]
-    return {"svg": "".join(out), "net": vals[-1] - vals[0], "games": len(pts), "first": first, "last": last, "peak": peak,
+    chart = {"bands": bands, "line": line, "area": f"{line} L{xs[-1]:.2f},100 L{xs[0]:.2f},100 Z",
+             "xticks": x_ticks([g for _, g in pts], xs, 6), "points": points, "top_edge": bands[-1]["top"]}
+    return {"chart": chart, "net": vals[-1] - vals[0], "games": len(pts), "first": pts[0][1], "last": pts[-1][1], "peak": peak,
             "wins": sum(1 for _, g in pts[1:] if g["result"] == "W"), "losses": sum(1 for _, g in pts[1:] if g["result"] == "L")}

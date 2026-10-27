@@ -16,7 +16,7 @@
 {% set path = request.url.path %}
 <header class="topbar">
   <div class="topbar-in">
-    <a class="brand" href="/"><span class="brand-mark">LC</span>League Coach</a>
+    <a class="brand" href="/" aria-label="League Coach"><span class="brand-mark">LC</span><span class="brand-name">League Coach</span></a>
     <nav class="tabs" aria-label="Navigation">
       <a class="{{ 'on' if path == '/' }}" href="/">Tableau de bord</a>
       <a class="{{ 'on' if path == '/games' }}" href="/games">Parties</a>
@@ -67,13 +67,31 @@
     if (first.tagName === 'A') first.click(); else { const s = first.querySelector('select'); if (s) s.focus(); }
   });
   /* Info-bulles des graphiques (survol à la souris, appui au doigt, focus au clavier) */
+  /* La valeur en premier, le contexte ensuite ; textContent uniquement (données venant de Riot ou de l'utilisateur) */
   const tip = document.createElement('div'); tip.className = 'tip'; tip.hidden = true; document.body.appendChild(tip);
-  const show = el => { const r = el.getBoundingClientRect(); tip.textContent = el.dataset.tip; tip.hidden = false;
-    const w = tip.offsetWidth; tip.style.left = Math.min(Math.max(8, r.left + r.width / 2 - w / 2), innerWidth - w - 8) + 'px';
-    tip.style.top = (r.top + scrollY - tip.offsetHeight - 10) + 'px'; };
-  ['mouseover', 'focusin', 'click'].forEach(ev => document.addEventListener(ev, e => { const el = e.target.closest && e.target.closest('[data-tip]'); if (el) show(el); else if (ev !== 'mouseover') tip.hidden = true; }));
-  document.addEventListener('mouseout', e => { if (e.target.closest && e.target.closest('[data-tip]')) tip.hidden = true; });
-  document.querySelectorAll('.lp-wrap').forEach(e => e.scrollLeft = e.scrollWidth);  /* sur mobile, afficher les parties récentes */
+  const show = el => {
+    tip.replaceChildren();
+    if (el.dataset.v) { const b = document.createElement('b'); b.textContent = el.dataset.v; tip.append(b); }
+    const s = document.createElement('span'); s.textContent = el.dataset.tip; tip.append(s);
+    tip.hidden = false;
+    const r = el.getBoundingClientRect(), w = tip.offsetWidth;
+    tip.style.left = Math.min(Math.max(8, r.left + r.width / 2 - w / 2), innerWidth - w - 8) + 'px';
+    tip.style.top = (r.top + scrollY - tip.offsetHeight - 6) + 'px';
+  };
+  ['focusin', 'click'].forEach(ev => document.addEventListener(ev, e => { const el = e.target.closest && e.target.closest('[data-tip]'); if (el) show(el); else tip.hidden = true; }));
+  /* Réticule : il suit le pointeur et s'accroche à la partie la plus proche sur l'axe horizontal */
+  document.querySelectorAll('[data-chart]').forEach(plot => {
+    const pts = [...plot.querySelectorAll('.chart-pt')], cross = plot.querySelector('.chart-cross');
+    let cur = null;
+    plot.addEventListener('pointermove', e => {
+      const r = plot.getBoundingClientRect(), x = 100 * (e.clientX - r.left) / r.width;
+      const p = pts.reduce((a, b) => Math.abs(b.dataset.x - x) < Math.abs(a.dataset.x - x) ? b : a);
+      if (p === cur) return;
+      if (cur) cur.classList.remove('on');
+      cur = p; p.classList.add('on'); cross.hidden = false; cross.style.left = p.dataset.x + '%'; show(p);
+    });
+    plot.addEventListener('pointerleave', () => { if (cur) cur.classList.remove('on'); cur = null; cross.hidden = true; tip.hidden = true; });
+  });
   /* Sélection multiple des parties */
   const bulk = document.getElementById('bulk');
   if (bulk) {

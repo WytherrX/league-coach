@@ -66,3 +66,39 @@
   <span class="small {{ rc }}" style="min-width:58px;text-align:right;font-weight:700">{% if g.lp_change is not none %}<span class="lpd {{ 'up' if g.lp_change >= 0 else 'down' }}">{{ '+' if g.lp_change >= 0 }}{{ g.lp_change|string|replace('-', '−') }} LP</span>{% else %}{{ ((r|fr(2)) ~ ' KDA') if r is not none else '' }}{% endif %}</span>
 </article>
 {% endmacro %}
+
+{% macro chart_legend(avg=True, target=True, lp=False) -%}
+<div class="chart-legend" aria-hidden="true">
+  <span><i class="dot W"></i>Victoire</span><span><i class="dot L"></i>Défaite</span>
+  {% if avg %}<span><i class="key avg"></i>Moyenne sur 5 parties</span>{% endif %}
+  {% if target %}<span><i class="key target"></i>Cible</span>{% endif %}
+  {% if lp %}<span><i class="key band"></i>Divisions</span>{% endif %}
+</div>
+{%- endmacro %}
+
+{% macro chart(c, height=210, lp=False, label="Graphique") %}
+<figure class="chart{{ ' lp' if lp }}" style="--h:{{ height }}px" aria-label="{{ label }}">
+  <div class="chart-y" aria-hidden="true">
+    {% if lp %}{% for b in c.bands %}<span style="top:{{ b.mid }}%"><i style="background:{{ b.color }}"></i>{{ b.label }}</span>{% endfor %}
+    {% else %}{% for t in c.yticks %}<span style="top:{{ t.y }}%">{{ t.label }}</span>{% endfor %}{% endif %}
+  </div>
+  <div class="chart-plot" data-chart>
+    <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+      {% if lp %}
+      {% for b in c.bands %}<rect x="0" y="{{ b.top }}" width="100" height="{{ b.height }}" fill="{{ b.color }}" opacity="{{ '0.09' if loop.index is odd else '0.04' }}"/>{% endfor %}
+      {% for b in c.bands %}{% if b.edge %}<line x1="0" x2="100" y1="{{ b.base }}" y2="{{ b.base }}" class="edge" stroke="{{ b.color }}"/>{% else %}<line x1="0" x2="100" y1="{{ b.base }}" y2="{{ b.base }}" class="grid"/>{% endif %}{% endfor %}
+      {% else %}
+      {% for t in c.yticks %}<line x1="0" x2="100" y1="{{ t.y }}" y2="{{ t.y }}" class="grid"/>{% endfor %}
+      {% endif %}
+      <path d="{{ c.area }}" class="area"/>
+      {% if c.target %}<line x1="0" x2="100" y1="{{ c.target.y }}" y2="{{ c.target.y }}" class="target"/>{% endif %}
+      <path d="{{ c.line }}" class="line{{ ' raw' if c.avg }}"/>
+      {% if c.avg %}<path d="{{ c.avg }}" class="avg"/>{% endif %}
+    </svg>
+    {% if c.target %}<span class="chart-target" style="top:{{ c.target.y }}%">{{ c.target.label }}</span>{% endif %}
+    <span class="chart-cross" hidden></span>
+    {% for p in c.points %}<button type="button" class="chart-pt {{ p.cls }}{{ ' last' if loop.last }}" style="left:{{ p.x }}%;top:{{ p.y }}%" data-x="{{ p.x }}" data-v="{{ p.value }}" data-tip="{{ p.tip }}" aria-label="{{ p.value }}, {{ p.tip }}"></button>{% endfor %}
+  </div>
+  <div class="chart-x" aria-hidden="true">{% for t in c.xticks %}<span class="{{ t.anchor }}" style="left:{{ t.x }}%">{{ t.label }}</span>{% endfor %}</div>
+</figure>
+{% endmacro %}

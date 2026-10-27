@@ -276,24 +276,49 @@ tr.top td:first-child{box-shadow:inset 3px 0 0 var(--great)}
 
 /* ---------- Courbes ---------- */
 .charts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
-.spark{width:100%;height:auto;display:block}
-.spark .ln{fill:none;stroke:var(--accent);stroke-width:2.5;stroke-linejoin:round}
-.spark .tg{stroke:var(--warn);stroke-width:1.5;stroke-dasharray:5 4;opacity:.8}
-.spark .dot{fill:var(--surface);stroke:var(--accent);stroke-width:2.5}
-.spark text{fill:var(--muted)}
+
+/* ---------- Graphiques : tracé SVG étiré, graduations et points en HTML ---------- */
+.chart{margin:6px 0 0;display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-rows:var(--h) auto;column-gap:10px}
+.chart-y{position:relative;min-width:28px;font-size:.72rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.chart-y span{position:absolute;right:0;transform:translateY(-50%);white-space:nowrap;line-height:1;display:flex;align-items:center;gap:6px}
+.chart-y i{width:3px;height:14px;border-radius:2px;opacity:.9}
+.chart-plot{position:relative;touch-action:pan-y}
+.chart-plot svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.chart-plot .grid{stroke:var(--line);stroke-width:1;vector-effect:non-scaling-stroke}
+.chart-plot .edge{stroke-width:1.5;vector-effect:non-scaling-stroke;opacity:.75}
+.chart-plot .target{stroke:var(--warn);stroke-width:1.5;stroke-dasharray:6 5;vector-effect:non-scaling-stroke;opacity:.8}
+.chart-plot .area{fill:var(--accent);opacity:.1}
+.chart-plot .line{fill:none;stroke:var(--accent-2);stroke-width:2;stroke-linejoin:round;stroke-linecap:round;vector-effect:non-scaling-stroke}
+.chart-plot .line.raw{stroke:var(--muted);stroke-width:1.25;opacity:.5}
+.chart-plot .avg{fill:none;stroke:var(--accent-2);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round;vector-effect:non-scaling-stroke}
+.chart-target{position:absolute;right:2px;transform:translateY(-130%);font-size:.68rem;font-weight:600;color:var(--muted);pointer-events:none;white-space:nowrap}
+.chart-cross{position:absolute;top:0;bottom:0;width:1px;background:var(--line-2);pointer-events:none}
+.chart-pt{position:absolute;width:24px;height:24px;margin:-12px 0 0 -12px;border:0;padding:0;background:transparent;cursor:pointer;border-radius:999px;z-index:1}
+.chart-pt::after{content:"";position:absolute;inset:8px;border-radius:999px;background:var(--win);box-shadow:0 0 0 2px var(--surface);transition:transform .12s}
+.chart-pt.L::after{background:var(--loss)}
+.chart-pt.on,.chart-pt:focus-visible{z-index:2;outline:none}
+.chart-pt.on::after,.chart-pt:hover::after,.chart-pt:focus-visible::after{transform:scale(1.55)}
+.chart-pt:focus-visible::after{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--accent)}
+.chart-x{grid-column:2;position:relative;height:24px;font-size:.72rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.chart-x span{position:absolute;top:7px;white-space:nowrap;transform:translateX(-50%)}
+.chart-x .start{transform:none} .chart-x .end{transform:translateX(-100%)}
+.chart-legend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:.74rem;color:var(--muted)}
+.chart-legend span{display:inline-flex;align-items:center;gap:6px}
+.chart-legend .dot{width:8px;height:8px;border-radius:999px;background:var(--win)}
+.chart-legend .dot.L{background:var(--loss)}
+.chart-legend .key{width:16px;border-top:2.5px solid var(--accent-2)}
+.chart-legend .key.target{border-top:1.5px dashed var(--warn)}
+.chart-legend .key.band{height:10px;border:0;border-radius:2px;background:linear-gradient(90deg,rgba(45,190,122,.45),rgba(124,140,255,.45))}
+.chart-kpi{display:inline-flex;align-items:baseline;gap:6px}
+.chart-kpi b{font-size:1.05rem}
 
 /* ---------- Évolution des LP ---------- */
 .lp-stats{display:flex;flex-wrap:wrap;gap:6px 22px}
 .lp-stats>span{display:flex;flex-direction:column;align-items:flex-end;gap:0}
 .lp-stats b{font-size:.95rem;font-variant-numeric:tabular-nums}
-.lp-wrap{margin:0 -4px}
-.lpchart{width:100%;height:auto;display:block}
-.lpchart .ax{font-size:11px;font-weight:600;fill:var(--muted);font-family:var(--font)}
-.lpchart .ax.r{display:none}
-.lpchart .pt{stroke:var(--surface);stroke-width:2;cursor:pointer;transition:r .1s}
-.lpchart .pt.W{fill:var(--win)} .lpchart .pt.L{fill:var(--loss)}
-.lpchart .pt:hover,.lpchart .pt:focus{r:7;outline:none}
-.tip{position:absolute;z-index:50;max-width:320px;padding:7px 10px;border-radius:6px;background:#05070D;border:1px solid var(--line-2);font-size:.8rem;font-weight:600;color:var(--ink);pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.tip{position:absolute;z-index:50;max-width:300px;padding:8px 11px;border-radius:8px;background:#05070D;border:1px solid var(--line-2);font-size:.78rem;color:var(--ink);pointer-events:none;box-shadow:0 10px 28px rgba(0,0,0,.55);display:flex;flex-direction:column;gap:2px}
+.tip b{font-size:.92rem;font-weight:700;font-variant-numeric:tabular-nums}
+.tip span{color:var(--muted);font-weight:500}
 .lpd{font-weight:700;font-size:.78rem;font-variant-numeric:tabular-nums}
 .lpd.up{color:var(--good)} .lpd.down{color:var(--loss)}
 .charts.two{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -312,7 +337,6 @@ tr.top td:first-child{box-shadow:inset 3px 0 0 var(--great)}
   .brand{flex:1}
   .tabs{order:3;flex-basis:100%;height:44px}
   .tabs a{padding:0 10px}
-  .acct select{max-width:150px}
   h1{font-size:1.35rem}
   .pf-name{font-size:1.4rem}
   .pf-icon img,.pf-icon .ph{width:64px;height:64px;border-radius:12px}
@@ -323,12 +347,13 @@ tr.top td:first-child{box-shadow:inset 3px 0 0 var(--great)}
   .match .st,.match .vs{display:none}
   .match .lesson{grid-column:1/-1}
   .versus .score{margin-left:0;text-align:left}
-  .lp-wrap{overflow-x:auto;margin:0}
-  .lpchart{min-width:720px}
-  .lpchart .ax{font-size:17px}
-  .lpchart .ax.r{display:block;opacity:.7}
   .bulkbar{top:104px}
   .hide-sm{display:none}
+  .chart-x .opt{display:none}
+  .topbar .brand-name{display:none}
+  .acct select{max-width:230px}
+  .chart.lp .chart-pt::after{inset:9px}
+  .chart-target{display:none}
   .seg a{padding:4px 14px}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}

@@ -411,8 +411,8 @@ def dashboard(request: Request, n: int = 20):
     weak = analysis.weaknesses(metrics, role)
     focus = analysis.next_focus(weak, all_games, role)
     chrono = list(reversed(all_games[:30]))
-    charts = [(title, caption, analysis.sparkline([g[key] for g in chrono], target, lo, hi))
-              for key, title, target, lo, hi, caption in analysis.ROLES[role]["charts"]]
+    charts = [(title, analysis.metric_chart(chrono, key, target, unit, champ_name, value_label))
+              for key, title, target, unit, value_label in analysis.ROLES[role]["charts"]]
     drills = {}
     for g in all_games:
         if g["focus"]:
