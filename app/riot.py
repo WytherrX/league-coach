@@ -123,7 +123,8 @@ def puuid(riot_id, region):
     name, _, tag = riot_id.partition("#")
     _, base = hosts(region)
     base = base.replace("sea.", "asia.")  # Account-V1 n'existe pas sur le cluster SEA
-    acc = get(f"{base}/riot/account/v1/accounts/by-riot-id/{urllib.parse.quote(name.strip())}/{urllib.parse.quote(tag.strip())}")
+    # safe="" : un « / » dans le Riot ID est encodé et ne peut pas modifier le chemin de la requête
+    acc = get(f"{base}/riot/account/v1/accounts/by-riot-id/{urllib.parse.quote(name.strip(), safe='')}/{urllib.parse.quote(tag.strip(), safe='')}")
     if not acc:
         raise RiotError(f"Riot ID introuvable : {riot_id}")
     return acc["puuid"]

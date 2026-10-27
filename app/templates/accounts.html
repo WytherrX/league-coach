@@ -61,4 +61,17 @@
     <div class="s6"><button class="btn" type="submit">Ajouter le compte</button></div>
   </form>
 </section>
+<section class="panel" id="securite">
+  <div class="panel-h"><h2>Sécurité de ton compte League Coach</h2><span class="label">{{ user.username }}</span></div>
+  <form method="post" action="/password" class="form">
+    <label class="field s2"><span>Mot de passe actuel</span><input type="password" name="current" id="pw_current" autocomplete="current-password" required maxlength="128"></label>
+    <label class="field s2"><span>Nouveau mot de passe (10 caractères minimum)</span><input type="password" name="password" id="pw_new" autocomplete="new-password" required minlength="10" maxlength="128"></label>
+    <label class="field s2"><span>Confirme le nouveau mot de passe</span><input type="password" name="password2" id="pw_new2" autocomplete="new-password" required minlength="10" maxlength="128"></label>
+    <div class="s6 inline" style="align-items:center"><button class="btn" type="submit">Changer le mot de passe</button><span class="muted small">Change le mot de passe et déconnecte tes autres appareils.</span></div>
+  </form>
+  <form method="post" action="/sessions/revoke" class="inline" style="align-items:center">
+    <button class="btn sec" type="submit">Déconnecter mes autres appareils</button>
+    <span class="muted small">Garde cette session ouverte et ferme toutes les autres (téléphone, autre PC…).</span>
+  </form>
+</section>
 {% endblock %}

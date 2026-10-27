@@ -1,10 +1,15 @@
 import datetime
 import hashlib
 import json
+import logging
+import math
 import os
+import secrets
+import time
+import urllib.parse
 
 from fastapi import FastAPI, File, Form, Request, UploadFile
-from fastapi.responses import RedirectResponse
+from fastapi.responses import PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
@@ -30,6 +35,89 @@ templates = Jinja2Templates(directory=os.path.join(HERE, "templates"))
 db.init()
 MU = analysis.load_matchups()
 sync.start()
+log = logging.getLogger("uvicorn.error")
+
+
+# ---------- Sécurité des requêtes ----------
+
+SECURITY_HEADERS = {
+    "X-Frame-Options": "DENY",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "same-origin",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+    "Content-Security-Policy": "default-src 'self'; img-src 'self' data: https://ddragon.leagueoflegends.com; "
+                               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; "
+                               "script-src 'self' 'unsafe-inline'; frame-ancestors 'none'; form-action 'self'; base-uri 'self'; object-src 'none'",
+}
+
+
+def same_origin(request):
+    """Protection CSRF : un formulaire envoyé par un navigateur porte l'en-tête Origin (ou Referer).
+    Il doit venir du même nom d'hôte que l'appli. Sans ces en-têtes, ce n'est pas un navigateur : pas de CSRF possible."""
+    source = request.headers.get("origin") or request.headers.get("referer")
+    if not source:
+        return True
+    host = urllib.parse.urlsplit("//" + request.headers.get("host", "")).hostname
+    return urllib.parse.urlsplit(source).hostname == host and host is not None
+
+
+@app.middleware("http")
+async def security(request: Request, call_next):
+    if request.method not in ("GET", "HEAD", "OPTIONS") and not same_origin(request):
+        return PlainTextResponse("Requête refusée : elle ne vient pas de League Coach.", status_code=403)
+    response = await call_next(request)
+    for name, value in SECURITY_HEADERS.items():
+        response.headers.setdefault(name, value)
+    return response
+
+
+def safe_next(url, default):
+    """Redirection après un formulaire : uniquement vers une page de l'appli (pas //site.com ni /\\site.com)."""
+    return url if url.startswith("/") and not url.startswith(("//", "/\\")) else default
+
+
+# ---------- Limite des tentatives de connexion ----------
+
+FAILS = {}                       # "u:identifiant" ou "ip:adresse" -> horodatages des échecs
+FAIL_WINDOW = 15 * 60
+FAIL_LIMITS = {"u": 10, "ip": 30}
+
+
+def blocked(key):
+    now = time.monotonic()
+    recent = [t for t in FAILS.get(key, []) if now - t < FAIL_WINDOW]
+    if recent:
+        FAILS[key] = recent
+    else:
+        FAILS.pop(key, None)
+    return len(recent) >= FAIL_LIMITS[key.split(":")[0]]
+
+
+def record_fail(*keys):
+    if len(FAILS) > 50_000:      # garde-fou mémoire si quelqu'un essaie des milliers d'identifiants
+        FAILS.clear()
+    for key in keys:
+        FAILS.setdefault(key, []).append(time.monotonic())
+
+
+# Hachage factice : une connexion avec un identifiant inconnu prend autant de temps qu'avec un vrai
+DUMMY_HASH = db.hash_password(secrets.token_hex(16))
+PASSWORD_MAX = 128
+
+
+# ---------- Code d'installation du premier compte ----------
+
+SETUP_CODE = None
+
+
+def no_users():
+    with db.connect() as con:
+        return con.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 0
+
+
+if no_users():
+    SETUP_CODE = f"{secrets.randbelow(10**6):06d}-{secrets.randbelow(10**6):06d}"
+    log.warning("Aucun compte : code d'installation pour créer le compte administrateur : %s", SETUP_CODE)
 
 
 def champ_name(key):
@@ -99,7 +187,18 @@ def current_user(request):
     if not uid:
         return None
     with db.connect() as con:
-        return con.execute("SELECT * FROM users WHERE id = ?", (uid,)).fetchone()
+        user = con.execute("SELECT * FROM users WHERE id = ?", (uid,)).fetchone()
+    # Session révoquée (mot de passe changé, « déconnecter mes autres appareils ») ou utilisateur supprimé
+    if not user or request.session.get("sv", 0) != user["session_version"]:
+        request.session.clear()
+        return None
+    return user
+
+
+def start_session(request, user):
+    request.session.clear()
+    request.session["uid"] = user["id"]
+    request.session["sv"] = user["session_version"]
 
 
 def user_accounts(user):
@@ -149,19 +248,40 @@ def flash(request, text, kind="ok"):
     request.session["flash"] = {"text": text, "kind": kind}
 
 
-def to_int(v):
-    return int(v) if v not in (None, "") else None
+def to_int(v, lo=0, hi=100_000):
+    if v in (None, ""):
+        return None
+    n = int(v)
+    if not lo <= n <= hi:
+        raise ValueError(v)
+    return n
 
 
-def to_float(v):
-    return float(str(v).replace(",", ".")) if v not in (None, "") else None
+def to_float(v, lo=0, hi=100):
+    if v in (None, ""):
+        return None
+    f = float(str(v).replace(",", "."))
+    if not math.isfinite(f) or not lo <= f <= hi:
+        raise ValueError(v)
+    return f
+
+
+def rank_or_none(v):
+    return v if v in analysis.RANKS else None
 
 
 # ---------- Authentification ----------
 
 def signup_open():
-    with db.connect() as con:
-        return ALLOW_SIGNUP or con.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 0
+    return ALLOW_SIGNUP or no_users()
+
+
+def password_error(password, password2):
+    if not 10 <= len(password) <= PASSWORD_MAX:
+        return f"Le mot de passe doit faire entre 10 et {PASSWORD_MAX} caractères."
+    if password != password2:
+        return "Les deux mots de passe ne correspondent pas."
+    return None
 
 
 @app.get("/login")
@@ -171,12 +291,20 @@ def login_page(request: Request):
 
 @app.post("/login")
 def login(request: Request, username: str = Form(...), password: str = Form(...)):
+    username = username.strip().lower()[:64]
+    keys = ("u:" + username, "ip:" + (request.client.host if request.client else "?"))
+    if any(blocked(k) for k in keys):
+        return templates.TemplateResponse(request, "login.html", {"signup": signup_open(),
+                                          "error": "Trop de tentatives échouées. Réessaie dans 15 minutes."}, status_code=429)
     with db.connect() as con:
-        user = con.execute("SELECT * FROM users WHERE username = ?", (username.strip().lower(),)).fetchone()
-    if not user or not db.check_password(password, user["pw_hash"]):
+        user = con.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
+    ok = len(password) <= PASSWORD_MAX and db.check_password(password, user["pw_hash"] if user else DUMMY_HASH) and user is not None
+    if not ok:
+        record_fail(*keys)
+        log.warning("Échec de connexion pour « %s » depuis %s", username, keys[1][3:])
         return templates.TemplateResponse(request, "login.html", {"signup": signup_open(), "error": "Identifiant ou mot de passe incorrect."}, status_code=400)
-    request.session.clear()
-    request.session["uid"] = user["id"]
+    FAILS.pop(keys[0], None)
+    start_session(request, user)
     return go("/")
 
 
@@ -184,32 +312,70 @@ def login(request: Request, username: str = Form(...), password: str = Form(...)
 def register_page(request: Request):
     if not signup_open():
         return go("/login")
-    return templates.TemplateResponse(request, "register.html", {"error": None})
+    return templates.TemplateResponse(request, "register.html", {"error": None, "first": no_users()})
 
 
 @app.post("/register")
-def register(request: Request, username: str = Form(...), password: str = Form(...), password2: str = Form(...)):
+def register(request: Request, username: str = Form(...), password: str = Form(...), password2: str = Form(...),
+             setup_code: str = Form("")):
+    global SETUP_CODE
     if not signup_open():
         return go("/login")
+    first = no_users()
     username = username.strip().lower()
     error = None
-    if not (3 <= len(username) <= 32) or not username.replace("_", "").replace("-", "").isalnum():
+    if first and not (SETUP_CODE and secrets.compare_digest(setup_code.strip(), SETUP_CODE)):
+        error = "Code d'installation incorrect. Il s'affiche dans les journaux du conteneur : docker compose logs | grep installation"
+    elif not (3 <= len(username) <= 32) or not username.replace("_", "").replace("-", "").isalnum():
         error = "L'identifiant doit faire 3 à 32 caractères : lettres, chiffres, - ou _."
-    elif len(password) < 10:
-        error = "Le mot de passe doit faire au moins 10 caractères."
-    elif password != password2:
-        error = "Les deux mots de passe ne correspondent pas."
+    else:
+        error = password_error(password, password2)
     if error:
-        return templates.TemplateResponse(request, "register.html", {"error": error}, status_code=400)
+        return templates.TemplateResponse(request, "register.html", {"error": error, "first": first}, status_code=400)
     with db.connect() as con:
         if con.execute("SELECT 1 FROM users WHERE username = ?", (username,)).fetchone():
-            return templates.TemplateResponse(request, "register.html", {"error": "Cet identifiant est déjà pris."}, status_code=400)
-        first = con.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 0
+            return templates.TemplateResponse(request, "register.html", {"error": "Cet identifiant est déjà pris.", "first": first}, status_code=400)
         cur = con.execute("INSERT INTO users (username, pw_hash, is_admin) VALUES (?, ?, ?)",
                           (username, db.hash_password(password), 1 if first else 0))
-    request.session.clear()
-    request.session["uid"] = cur.lastrowid
+        user = con.execute("SELECT * FROM users WHERE id = ?", (cur.lastrowid,)).fetchone()
+    if first:
+        SETUP_CODE = None
+    start_session(request, user)
     return go("/accounts")
+
+
+@app.post("/password")
+def password_change(request: Request, current: str = Form(...), password: str = Form(...), password2: str = Form(...)):
+    user = current_user(request)
+    if not user:
+        return go("/login")
+    if len(current) > PASSWORD_MAX or not db.check_password(current, user["pw_hash"]):
+        flash(request, "Mot de passe actuel incorrect.", "err")
+        return go("/accounts#securite")
+    error = password_error(password, password2)
+    if error:
+        flash(request, error, "err")
+        return go("/accounts#securite")
+    with db.connect() as con:
+        con.execute("UPDATE users SET pw_hash = ?, session_version = session_version + 1 WHERE id = ?",
+                    (db.hash_password(password), user["id"]))
+        user = con.execute("SELECT * FROM users WHERE id = ?", (user["id"],)).fetchone()
+    start_session(request, user)
+    flash(request, "Mot de passe changé. Tes autres appareils ont été déconnectés.")
+    return go("/accounts#securite")
+
+
+@app.post("/sessions/revoke")
+def sessions_revoke(request: Request):
+    user = current_user(request)
+    if not user:
+        return go("/login")
+    with db.connect() as con:
+        con.execute("UPDATE users SET session_version = session_version + 1 WHERE id = ?", (user["id"],))
+        user = con.execute("SELECT * FROM users WHERE id = ?", (user["id"],)).fetchone()
+    start_session(request, user)
+    flash(request, "Tes autres appareils ont été déconnectés.")
+    return go("/accounts#securite")
 
 
 @app.post("/logout")
@@ -289,12 +455,18 @@ def account_add(request: Request, riot_id: str = Form(...), region: str = Form("
     if not user:
         return go("/login")
     riot_id = riot_id.strip()
-    if "#" not in riot_id or len(riot_id) > 40:
+    name, _, tag = riot_id.partition("#")
+    if not (1 <= len(name.strip()) <= 32 and 1 <= len(tag.strip()) <= 10) or "#" in tag:
         flash(request, "Indique ton Riot ID complet, avec le # et le tag.", "err")
+        return go("/accounts")
+    try:
+        lp = to_int(rank_lp, 0, 5000)
+    except ValueError:
+        flash(request, "Les LP doivent être un nombre entre 0 et 5000.", "err")
         return go("/accounts")
     with db.connect() as con:
         cur = con.execute("INSERT INTO accounts (user_id, riot_id, region, rank_div, rank_lp, goal_div) VALUES (?, ?, ?, ?, ?, ?)",
-                          (user["id"], riot_id, region, rank_div or None, to_int(rank_lp), goal_div or None))
+                          (user["id"], riot_id, region if region in riot.ROUTING else "euw", rank_or_none(rank_div), lp, rank_or_none(goal_div)))
     request.session["account"] = cur.lastrowid
     if riot.API_KEY:
         sync.trigger(cur.lastrowid)
@@ -309,9 +481,14 @@ def account_edit(request: Request, account_id: int, rank_div: str = Form(""), ra
     user = current_user(request)
     if not user:
         return go("/login")
+    try:
+        lp = to_int(rank_lp, 0, 5000)
+    except ValueError:
+        flash(request, "Les LP doivent être un nombre entre 0 et 5000.", "err")
+        return go("/accounts")
     with db.connect() as con:
         con.execute("UPDATE accounts SET rank_div = ?, rank_lp = ?, goal_div = ? WHERE id = ? AND user_id = ?",
-                    (rank_div or None, to_int(rank_lp), goal_div or None, account_id, user["id"]))
+                    (rank_or_none(rank_div), lp, rank_or_none(goal_div), account_id, user["id"]))
     flash(request, "Compte mis à jour.")
     return go("/accounts")
 
@@ -323,7 +500,7 @@ def account_select(request: Request, account_id: int, next: str = Form("/")):
         return go("/login")
     if any(a["id"] == account_id for a in user_accounts(user)):
         request.session["account"] = account_id
-    return go(next if next.startswith("/") else "/")
+    return go(safe_next(next, "/"))
 
 
 @app.post("/accounts/{account_id}/sync")
@@ -336,7 +513,7 @@ def account_sync(request: Request, account_id: int, next: str = Form("/games")):
             flash(request, "Synchronisation lancée : la page se met à jour toute seule.")
         else:
             flash(request, "Une synchronisation est déjà en cours.", "err")
-    return go(next if next.startswith("/") else "/games")
+    return go(safe_next(next, "/games"))
 
 
 @app.post("/accounts/{account_id}/delete")
@@ -422,15 +599,19 @@ def game_add(request: Request, played_on: str = Form(...), champ: str = Form(...
     acc, _ = active_account(request, user)
     if not acc:
         return go("/accounts")
+    if champ not in MU["champions"] or (enemy and enemy not in MU["champions"]):
+        flash(request, "Choisis les champions dans la liste.", "err")
+        return go("/games")
     try:
         datetime.date.fromisoformat(played_on)
-        values = (acc["id"], played_on, champ if champ in MU["champions"] else champ[:30], enemy or None,
-                  "W" if result == "W" else "L", to_int(kills), to_int(deaths), to_int(assists), to_int(deaths_pre15),
-                  to_int(kp), to_float(cs_min), to_int(control_wards), to_int(obj_lost_free),
+        values = (acc["id"], played_on, champ, enemy or None,
+                  "W" if result == "W" else "L", to_int(kills, 0, 100), to_int(deaths, 0, 100), to_int(assists, 0, 100),
+                  to_int(deaths_pre15, 0, 100), to_int(kp, 0, 100), to_float(cs_min, 0, 20), to_int(control_wards, 0, 100),
+                  to_int(obj_lost_free, 0, 50),
                   focus if focus in analysis.DRILL_INDEX else None, None if focus_ok == "" else int(focus_ok == "1"),
-                  rank_div if rank_div in analysis.RANKS else None, to_int(rank_lp), lesson.strip()[:500] or None)
+                  rank_or_none(rank_div), to_int(rank_lp, 0, 5000), lesson.strip()[:500] or None)
     except ValueError:
-        flash(request, "Une valeur n'est pas un nombre valide. Vérifie le formulaire.", "err")
+        flash(request, "Une valeur n'est pas valide (nombre ou date). Vérifie le formulaire.", "err")
         return go("/games")
     with db.connect() as con:
         # Partie déjà importée depuis Riot (même jour, champion, résultat et KDA) : on la complète au lieu de la dupliquer
@@ -547,7 +728,9 @@ async def admin_matchups(request: Request, file: UploadFile = File(...)):
     if not user or not user["is_admin"]:
         return go("/")
     try:
-        data = json.loads((await file.read()).decode("utf-8"))
+        raw = await file.read(5_000_001)
+        assert len(raw) <= 5_000_000            # 5 Mo maximum
+        data = json.loads(raw.decode("utf-8"))
         assert isinstance(data["champions"], dict) and data["ddragon"]
         sources = data["sources"] if "sources" in data else {"source": {"label": "source", "matchups": data["matchups"]}}
         assert sources

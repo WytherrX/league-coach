@@ -27,7 +27,7 @@
       <thead><tr><th>Identifiant</th><th>Comptes LoL</th><th>Créé le</th><th></th></tr></thead>
       <tbody>{% for u in users %}
         <tr><td>{{ u.username }}{% if u.is_admin %} <span class="pill acc">admin</span>{% endif %}</td><td class="n">{{ u.n_accounts }}</td><td class="n">{{ u.created_at[:10] }}</td>
-        <td>{% if u.id != user.id %}<form method="post" action="/admin/users/{{ u.id }}/delete" onsubmit="return confirm('Supprimer {{ u.username }} et toutes ses données ?')"><button class="ghost danger" type="submit">Supprimer</button></form>{% endif %}</td></tr>
+        <td>{% if u.id != user.id %}<form method="post" action="/admin/users/{{ u.id }}/delete" data-u="{{ u.username }}" onsubmit="return confirm('Supprimer ' + this.dataset.u + ' et toutes ses données ?')"><button class="ghost danger" type="submit">Supprimer</button></form>{% endif %}</td></tr>
       {% endfor %}</tbody>
     </table></div>
     <p class="muted" style="font-size:.85rem">Ouvre ou ferme les inscriptions avec la variable ALLOW_SIGNUP du fichier .env, puis redémarre le conteneur.</p>

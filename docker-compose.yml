@@ -8,8 +8,8 @@ services:
     volumes:
       - league-coach-data:/data
     ports:
-      # Port exposé sur l'hôte (PORT dans .env, 8085 par défaut), à cibler depuis le reverse proxy
-      - "${PORT:-8085}:8000"
+      # Adresse et port exposés sur l'hôte (BIND_IP et PORT dans .env), à cibler depuis le reverse proxy
+      - "${BIND_IP:-0.0.0.0}:${PORT:-8085}:8000"
 
 volumes:
   league-coach-data:

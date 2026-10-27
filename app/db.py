@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS users (
     username TEXT UNIQUE NOT NULL,
     pw_hash TEXT NOT NULL,
     is_admin INTEGER NOT NULL DEFAULT 0,
+    session_version INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE TABLE IF NOT EXISTS accounts (
@@ -96,7 +97,7 @@ def init():
             """)
         con.executescript(SCHEMA)
         # colonnes ajoutées pour la synchronisation Riot
-        for table, col, decl in [("accounts", "puuid", "TEXT"), ("accounts", "synced_at", "TEXT"), ("accounts", "sync_error", "TEXT"),
+        for table, col, decl in [("users", "session_version", "INTEGER NOT NULL DEFAULT 0"), ("accounts", "puuid", "TEXT"), ("accounts", "synced_at", "TEXT"), ("accounts", "sync_error", "TEXT"),
                                  ("accounts", "sync_added", "INTEGER"), ("accounts", "ranked_games", "INTEGER"), ("accounts", "lp_value", "INTEGER"), ("accounts", "lp_match", "TEXT"), ("games", "lp_change", "INTEGER"), ("games", "match_id", "TEXT"), ("games", "played_at", "INTEGER"),
                                  ("games", "reviewed", "INTEGER NOT NULL DEFAULT 1")]:
             if col not in [r["name"] for r in con.execute(f"PRAGMA table_info({table})")]:
