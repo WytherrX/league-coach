@@ -10,13 +10,15 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="/static/style.css?v={{ STATIC_V }}">
+<link rel="icon" href="/static/logo.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/static/logo-180.png">
 </head>
 <body>
 {% if user %}
 {% set path = request.url.path %}
 <header class="topbar">
   <div class="topbar-in">
-    <a class="brand" href="/" aria-label="League Coach"><span class="brand-mark">LC</span><span class="brand-name">League Coach</span></a>
+    <a class="brand" href="/" aria-label="League Coach"><img class="brand-mark" src="/static/logo.svg" alt=""><span class="brand-name">League Coach</span></a>
     <nav class="tabs" aria-label="Navigation">
       <a class="{{ 'on' if path == '/' }}" href="/">Tableau de bord</a>
       <a class="{{ 'on' if path == '/games' }}" href="/games">Parties</a>

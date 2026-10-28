@@ -2,7 +2,7 @@
 {% block title %}Inscription · League Coach{% endblock %}
 {% block content %}
 <div class="auth">
-  <div class="brand"><span class="brand-mark">LC</span>League Coach</div>
+  <div class="brand"><img class="brand-mark" src="/static/logo.svg" alt="">League Coach</div>
     {% if error %}<div class="flash err" role="alert">{{ error }}</div>{% endif %}
   <form method="post" action="/register" class="panel">
     <h1 style="font-size:1.15rem">Créer un compte</h1>

@@ -2,7 +2,7 @@
 {% block title %}Connexion · League Coach{% endblock %}
 {% block content %}
 <div class="auth">
-  <div class="brand"><span class="brand-mark">LC</span>League Coach</div>
+  <div class="brand"><img class="brand-mark" src="/static/logo.svg" alt="">League Coach</div>
   <p class="muted" style="text-align:center">Suis tes parties, repère tes points faibles et choisis le bon counter.</p>
   {% if error %}<div class="flash err" role="alert">{{ error }}</div>{% endif %}
   <form method="post" action="/login" class="panel">
