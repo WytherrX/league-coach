@@ -6,7 +6,7 @@
     <a href="LICENSE"><img src="https://img.shields.io/badge/licence-MIT-5383E8" alt="Licence MIT"></a>
     <img src="https://img.shields.io/badge/python-3.12-2BC5A4" alt="Python 3.12">
     <img src="https://img.shields.io/badge/docker-compose-5383E8" alt="Docker Compose">
-    <img src="https://img.shields.io/badge/rôles-top%20·%20jungle%20·%20mid%20·%20ADC%20·%20support-2BC5A4" alt="Tous les rôles">
+    <img src="https://img.shields.io/badge/r%C3%B4les-top%20%C2%B7%20jungle%20%C2%B7%20mid%20%C2%B7%20ADC%20%C2%B7%20support-2BC5A4" alt="Tous les rôles">
   </p>
   <p>
     <a href="#démarrage-rapide">Démarrage rapide</a> ·
