@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import icon, dots, search %}
+{% from "_macros.html" import icon, dots, search, role_tabs %}
 {% block title %}Pool · League Coach{% endblock %}
 {% macro comfort_select(c, value, empty_label) %}
 <select name="c_{{ c }}" id="c_{{ c }}" aria-label="Aisance sur {{ champ_name(c) }}">
@@ -9,13 +9,15 @@
 {% endmacro %}
 {% block content %}
 <div class="page-h">
-  <div><span class="label">{{ account.riot_id }} · {{ ROLE.label }}</span><h1>Champion pool</h1></div>
+  <div><span class="label">{{ account.riot_id }} · un pool par rôle</span><h1>Champion pool {{ ROLE.label }}</h1></div>
   <span class="dim small">Winrates du patch {{ mu.patch }} ({{ mu.tier }}) : {{ mu.source_list|map(attribute=1)|join(', ') }}</span>
 </div>
+{{ role_tabs('/pool', role, sizes, unit=' champ.') }}
 
 <form method="post" action="/pool" class="stack">
+  <input type="hidden" name="role" value="{{ role }}">
   <section class="panel flush" aria-labelledby="h-pool">
-    <div class="panel-h"><h2 id="h-pool">Ton pool</h2><span class="label">trié par aisance puis parties enregistrées</span></div>
+    <div class="panel-h"><h2 id="h-pool">Ton pool {{ ROLE.label }}</h2><span class="label">trié par aisance puis parties en {{ ROLE.label }}</span></div>
     {% if pool %}
     <div class="tbl"><table>
       <thead><tr><th>Champion</th><th>Aisance</th><th class="n">Parties</th><th class="n">Bilan</th><th class="n">Bonus maîtrise</th><th class="n">Winrate patch</th></tr></thead>
@@ -32,7 +34,7 @@
         </tr>{% endfor %}</tbody>
     </table></div>
     {% else %}
-    <div class="body"><div class="empty">Ton pool est vide. Choisis tes champions ci-dessous en indiquant ton aisance sur chacun.</div></div>
+    <div class="body"><div class="empty">Ton pool {{ ROLE.label }} est vide. Choisis tes champions ci-dessous en indiquant ton aisance sur chacun.</div></div>
     {% endif %}
     <div class="body">
       <details>
@@ -46,7 +48,7 @@
             <tr><td>Moins de 20</td><td class="n">0</td></tr><tr><td>20 à 49</td><td class="n">+0,5 pt</td></tr>
             <tr><td>50 et plus</td><td class="n">+1 pt</td></tr></tbody></table></div>
         </div>
-        <p class="muted small" style="margin-top:8px">Le bonus s'ajoute au winrate du matchup sur la page Counters. Le nombre de parties est celui que tu as enregistrées dans <a href="/games">Parties</a> : il ne pénalise jamais, il récompense seulement l'expérience accumulée. Un main à 5/5 avec 50 parties gagne 8 points sur un champion en apprentissage, l'équivalent d'un matchup nettement favorable.</p>
+        <p class="muted small" style="margin-top:8px">Le bonus s'ajoute au winrate du matchup sur la page Counters. Le nombre de parties est celui que tu as jouées sur ce champion dans ce rôle (<a href="/games?role={{ role }}">Parties</a>) : il ne pénalise jamais, il récompense seulement l'expérience accumulée. Un main à 5/5 avec 50 parties gagne 8 points sur un champion en apprentissage, l'équivalent d'un matchup nettement favorable.</p>
       </details>
     </div>
   </section>
@@ -67,6 +69,6 @@
     </div>
     <div class="none" id="add-grid-none" hidden>Aucun champion ne correspond.</div>
   </section>
-  <div style="position:sticky;bottom:12px;display:flex;justify-content:flex-end"><button class="btn" type="submit" style="box-shadow:0 6px 24px rgba(0,0,0,.45)">Enregistrer le pool</button></div>
+  <div style="position:sticky;bottom:12px;display:flex;justify-content:flex-end"><button class="btn" type="submit" style="box-shadow:0 6px 24px rgba(0,0,0,.45)">Enregistrer le pool {{ ROLE.label }}</button></div>
 </form>
 {% endblock %}

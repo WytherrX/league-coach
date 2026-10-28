@@ -15,7 +15,7 @@ RUNNING = set()                        # comptes en cours de synchronisation, po
 log = logging.getLogger("uvicorn.error")
 
 STAT_COLS = ["played_on", "played_at", "champ", "enemy", "result", "kills", "deaths", "assists",
-             "deaths_pre15", "kp", "cs_min", "control_wards", "obj_lost_free", "cs10", "gd15", "dmg_share"]
+             "deaths_pre15", "kp", "cs_min", "control_wards", "obj_lost_free", "cs10", "gd15", "dmg_share", "vision_min", "role"]
 
 
 def save_game(con, account_id, g):
@@ -66,19 +66,34 @@ def sync_account(account_id):
         with db.connect() as con:
             con.execute("UPDATE accounts SET puuid = ? WHERE id = ?", (pid, account_id))
             known = {r[0] for r in con.execute("""SELECT match_id FROM games WHERE account_id = ? AND match_id IS NOT NULL
-                                                  UNION SELECT match_id FROM skipped WHERE account_id = ?""", (account_id, account_id))}
-        ids = riot.match_ids(pid, acc["region"], FIRST_IMPORT if acc["synced_at"] is None else 20)
+                                                  UNION SELECT match_id FROM skipped WHERE account_id = ? AND reason IS NOT 'legacy'""",
+                                               (account_id, account_id))}
+            # parties ignorées par l'ancienne version (un seul rôle suivi) : relues une fois
+            legacy = {r[0]: set((r[1] or "").split(",")) for r in con.execute(
+                "SELECT match_id, roles FROM skipped WHERE account_id = ? AND reason = 'legacy'", (account_id,))}
+        ids = riot.match_ids(pid, acc["region"], FIRST_IMPORT if acc["synced_at"] is None or legacy else 20)
         for mid in reversed([m for m in ids if m not in known]):   # du plus ancien au plus récent
             m, timeline = riot.match(mid, acc["region"])
             if not m:
                 continue
-            game, _ = riot.parse_game(m, timeline, pid, analysis.ROLES[analysis.role_of(acc)]["position"])
+            game, reason = riot.parse_game(m, timeline, pid)
             with db.connect() as con:
-                if game:
+                if mid in legacy:
+                    if game and game["role"] not in legacy[mid]:     # jouée sur un autre rôle : on l'importe enfin
+                        con.execute("DELETE FROM skipped WHERE account_id = ? AND match_id = ?", (account_id, mid))
+                        save_game(con, account_id, game)
+                        added += 1
+                    else:   # remake, ou partie du rôle suivi que l'utilisateur avait supprimée
+                        con.execute("UPDATE skipped SET reason = ? WHERE account_id = ? AND match_id = ?",
+                                    (reason or "deleted", account_id, mid))
+                elif game:
                     save_game(con, account_id, game)
                     added += 1
-                else:   # remake ou partie sur un autre rôle : on ne la relit plus
-                    con.execute("INSERT OR IGNORE INTO skipped (account_id, match_id) VALUES (?, ?)", (account_id, mid))
+                else:   # remake : on ne la relit plus
+                    con.execute("INSERT OR IGNORE INTO skipped (account_id, match_id, reason) VALUES (?, ?, ?)", (account_id, mid, reason))
+        if legacy:   # plus anciennes que la fenêtre relue : elles ne reviendront plus dans l'historique
+            with db.connect() as con:
+                con.execute("UPDATE skipped SET reason = 'old' WHERE account_id = ? AND reason = 'legacy'", (account_id,))
         div, lp, total = riot.solo_rank(pid, acc["region"])
         with db.connect() as con:
             if div:

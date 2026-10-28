@@ -30,10 +30,10 @@
       <form method="post" action="/accounts/{{ account.id }}/select">
         <input type="hidden" name="next" value="{{ path }}">
         <select aria-label="Compte affiché" onchange="this.form.action='/accounts/'+this.value+'/select';this.form.submit()">
-          {% for a in accounts %}<option value="{{ a.id }}" {{ 'selected' if account and a.id == account.id }}>{{ a.riot_id }} · {{ ROLES[a.role].label if a.role in ROLES else 'Jungle' }}</option>{% endfor %}
+          {% for a in accounts %}<option value="{{ a.id }}" {{ 'selected' if account and a.id == account.id }}>{{ a.riot_id }}</option>{% endfor %}
         </select>
       </form>
-      {% elif account %}<span class="who">{{ account.riot_id }} · {{ ROLE.label }}</span>{% endif %}
+      {% elif account %}<span class="who">{{ account.riot_id }}</span>{% endif %}
       <form method="post" action="/logout"><button class="icon-btn" type="submit" title="Déconnexion" aria-label="Déconnexion">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="M10 17l-5-5 5-5"/><path d="M5 12h12"/></svg>
       </button></form>
@@ -101,6 +101,24 @@
       document.getElementById('pick-all').checked = n > 0 && n === picks().length; };
     document.getElementById('pick-all').addEventListener('change', e => { picks().forEach(p => p.checked = e.target.checked); refresh(); });
     document.addEventListener('change', e => { if (e.target.classList && e.target.classList.contains('pick')) refresh(); });
+  }
+  /* Saisie manuelle : champs et objectifs propres au rôle choisi */
+  const roleSwitch = document.querySelector('[data-role-switch]');
+  if (roleSwitch) {
+    const form = roleSwitch.form;
+    const apply = first => {
+      const role = roleSwitch.value;
+      form.querySelectorAll('[data-roles]').forEach(el => {
+        const on = el.dataset.roles.split(' ').includes(role);
+        el.hidden = !on;
+        if (el.tagName === 'OPTGROUP') el.disabled = !on;
+        el.querySelectorAll('input').forEach(i => { i.disabled = !on; });
+      });
+      const group = form.querySelector('#focus optgroup[data-roles="' + role + '"]');
+      if (!first && group) form.querySelector('#focus').value = group.dataset.default || '';
+    };
+    roleSwitch.addEventListener('change', () => apply(false));
+    apply(true);
   }
   document.addEventListener('change', e => {
     const card = e.target.closest && e.target.closest('.pcard');

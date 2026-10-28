@@ -19,7 +19,8 @@ RANKS = [f"{t}{d}" for t, _ in TIERS for d in (4, 3, 2, 1)] + ["M", "GM", "C"]
 POOL_DRILL = [("p-pool", "Rester dans ton pool", ["Ne jouer que des champions à 3/5 d'aisance ou plus", "Utiliser la page Counters pour choisir", "Garder les champions en apprentissage pour les parties normales"])]
 
 JUNGLE = {
-    "label": "Jungle", "short": "JUNGLE", "position": "JUNGLE", "file": "matchups.json",
+    "label": "Jungle", "short": "JGL", "position": "JUNGLE", "file": "matchups.json",
+    "card": ["kp", "cs_min", "deaths_pre15", "control_wards"],
     "enemy": "Jungler adverse", "enemy_q": "Quel jungler en face ?", "champs_label": "Tous les junglers",
     "aggressive": {"xinzhao", "jarvaniv", "trundle", "shaco", "nidalee", "leesin", "elise", "reksai", "graves",
                    "vi", "volibear", "pantheon", "darius", "rengar", "kindred", "qiyana", "naafiri", "talon"},
@@ -77,6 +78,7 @@ JUNGLE = {
 
 ADC = {
     "label": "ADC", "short": "ADC", "position": "BOTTOM", "file": "matchups-adc.json",
+    "card": ["kp", "cs_min", "cs10", "gd15"],
     "enemy": "ADC adverse", "enemy_q": "Quel ADC en face ?", "champs_label": "Tous les ADC",
     "aggressive": {"draven", "lucian", "kalista", "caitlyn", "samira", "tristana", "nilah", "missfortune", "ziggs", "varus", "yasuo"},
     "aggr_label": "Lane agressive", "calm_label": "Lane de farm / scaling", "plan_title": "Plan de lane",
@@ -142,14 +144,197 @@ ADC = {
     },
 }
 
-ROLES = {"jungle": JUNGLE, "adc": ADC}
+TOP = {
+    "label": "Top", "short": "TOP", "position": "TOP", "file": "matchups-top.json",
+    "card": ["kp", "cs_min", "cs10", "gd15"],
+    "enemy": "Toplaner adverse", "enemy_q": "Quel toplaner en face ?", "champs_label": "Tous les toplaners",
+    "aggressive": {"darius", "renekton", "pantheon", "jayce", "kled", "olaf", "sett", "riven", "irelia", "rumble",
+                   "quinn", "vayne", "teemo", "ambessa", "aatrox", "fiora"},
+    "aggr_label": "Lane agressive", "calm_label": "Lane de farm / scaling", "plan_title": "Plan de lane",
+    "plan_aggr": ["Pas d'échange aux niveaux 1 à 3 : laisse la vague venir vers ta tour et contente-toi des last-hits.",
+                  "Garde la vague près de ta tour : s'il avance pour te frapper, il s'expose à ton jungler.",
+                  "Ward la rivière à 2:45 puis à 5:30 : il jouera avec son jungler pour te punir.",
+                  "Joue pour ton spike (niveau 6 ou premier objet) avant de chercher le combat."],
+    "plan_calm": ["Prends la priorité dès les premiers niveaux : frappe-le à chaque last-hit.",
+                  "Slow push la vague 3, crash-la sous sa tour et back avec de l'avance.",
+                  "Prends les plaques tant que son jungler est montré de l'autre côté de la carte.",
+                  "Pousse ta vague avant chaque objectif pour pouvoir rejoindre l'équipe ou te téléporter."],
+    "charts": [("cs_min", "CS par minute", 7.5, "", "CS/min"), ("gd15", "Écart d'or à 15 min", 0, "or", "d'écart d'or")],
+    "form": ["cs10", "gd15", "dmg_share"],
+    "metrics": [
+        ("cs_min", "CS par minute", "", 7.5, 6.8, True),
+        ("cs10", "CS à 10 min", "", 75, 65, True),
+        ("gd15", "Écart d'or à 15 min", "or", 0, -400, True),
+        ("deaths", "Morts par partie", "", 4.5, 5.5, False),
+        ("deaths_pre15", "Morts avant 15 min", "", 1.0, 1.5, False),
+        ("kp", "Participation aux kills", "%", 45, 40, True),
+        ("control_wards", "Control wards", "", 1.5, 1, True),
+        ("pool_share", "Parties sur ton pool", "%", 80, 60, True),
+    ],
+    "drills": {
+        "cs_min": [
+            ("t-cs-freeze", "Geler la vague devant ta tour", ["Garder 3 ou 4 sbires adverses de plus que les tiens, juste devant ta tour", "Ne last-hit qu'au dernier moment", "Le laisser venir : chaque pas qu'il fait l'expose à ton jungler"]),
+            ("t-cs-tp", "Ne pas perdre de vague en rotation", ["Avant chaque téléportation ou rotation, pousser la vague dans sa tour", "Reprendre la vague suivante en revenant", "Viser 7,5 CS/min"]),
+        ],
+        "cs10": [
+            ("t-l10-wave", "Vagues des 3 premières minutes", ["Vague 1 : te battre pour la priorité seulement si ton champion est plus fort niveau 1", "Vague 2 : prendre le niveau 2 sur la première sbire distance", "Ne lâcher aucun CS de la vague 3"]),
+            ("t-l10-trade", "Échanger sans perdre de CS", ["N'échanger que quand aucun sbire n'est à un coup", "Reculer derrière ta vague après l'échange", "Viser 75 CS à 10 min"]),
+        ],
+        "gd15": [
+            ("t-gd-cd", "Échanger sur ses temps de recharge", ["Repérer quand il utilise son sort principal sur la vague", "Échanger dans les 3 secondes qui suivent", "Reculer avant que le sort ne revienne"]),
+            ("t-gd-recall", "Back au bon moment", ["Back après avoir crash la vague dans sa tour", "Revenir avec un composant complet", "Ne jamais rester en lane sous 40 % de vie face à un all-in"]),
+            ("t-gd-plates", "Prendre les plaques", ["Avec la priorité de vague et son jungler montré ailleurs, frapper la tour", "Pinger avant de pousser", "Reculer dès que son jungler n'est plus vu depuis 20 s"]),
+        ],
+        "deaths": [
+            ("t-d-side", "Split push avec info", ["Pousser une side lane seulement si 3 adversaires sont visibles", "Ward à mi-chemin de la lane", "Reculer dès que 2 adversaires disparaissent de la carte"]),
+            ("t-d-tp", "Téléportation au bon moment", ["Ne te téléporter sur un fight que derrière la ligne adverse ou sur une ward sûre", "Garder la téléportation pour l'objectif si ta lane est perdue", "Viser 4 morts maximum"]),
+        ],
+        "deaths_pre15": [
+            ("t-e-jungler", "Respecter le jungler adverse", ["Ward la rivière à 2:45 puis à 5:30", "S'il n'est pas montré depuis 30 s, ne pas dépasser le milieu de la lane", "Garder le Flash pour son premier gank"]),
+            ("t-e-spikes", "Respecter ses power spikes", ["Niveau 2, 3 et 6 : savoir lequel il atteint en premier", "Reculer d'un pas quand il le prend avant toi", "Ne pas échanger contre un composant qu'il vient d'acheter"]),
+        ],
+        "kp": [
+            ("t-kp-tp", "Rejoindre les fights importants", ["Avant chaque dragon, herald ou Baron, décider : téléportation, rotation ou contrepartie en side", "Pinger ta décision à l'équipe", "Viser 45 % de participation"]),
+        ],
+        "control_wards": [
+            ("t-cw-river", "Control ward en rivière top", ["Une control ward dans le bush de rivière ou le tribush dès le premier back", "La remplacer à chaque retour en lane", "Viser 2 par partie"]),
+        ],
+        "pool_share": POOL_DRILL,
+        "close": [
+            ("t-c-close", "Fermer les parties", ["Après un fight gagné, prendre une tour avec l'équipe ou pousser ta side lane", "Ne pas split seul quand le Baron est disponible", "Toujours finir l'objectif avant de back"]),
+        ],
+    },
+}
+
+MID = {
+    "label": "Mid", "short": "MID", "position": "MIDDLE", "file": "matchups-mid.json",
+    "card": ["kp", "cs_min", "cs10", "gd15"],
+    "enemy": "Midlaner adverse", "enemy_q": "Quel midlaner en face ?", "champs_label": "Tous les midlaners",
+    "aggressive": {"zed", "talon", "qiyana", "leblanc", "akali", "yasuo", "yone", "pantheon", "irelia", "fizz",
+                   "diana", "sylas", "katarina", "ekko", "naafiri"},
+    "aggr_label": "Lane agressive / assassin", "calm_label": "Lane de contrôle / scaling", "plan_title": "Plan de lane",
+    "plan_aggr": ["Respecte ses niveaux 2, 3 et 6 : recule d'un pas quand il les atteint avant toi.",
+                  "Garde la vague au milieu ou vers ta tour, jamais poussée sans vision.",
+                  "Ward les deux côtés de la lane avant 3:00 et suis ses roams par un ping.",
+                  "Quand il vient de rater son sort clé, échange tout de suite : c'est sa fenêtre de faiblesse."],
+    "plan_calm": ["Prends la priorité dès le niveau 1 et punis-le à chaque last-hit.",
+                  "Pousse puis roam vers la lane du côté de ton jungler, ou suis-le sur le scuttle.",
+                  "Prends les plaques quand son jungler est montré de l'autre côté.",
+                  "Arrive le premier sur chaque fight de rivière : ta priorité de vague t'en donne le droit."],
+    "charts": [("cs_min", "CS par minute", 7.5, "", "CS/min"), ("kp", "Participation aux kills", 55, "%", "de participation")],
+    "form": ["cs10", "gd15", "dmg_share"],
+    "metrics": [
+        ("cs_min", "CS par minute", "", 7.5, 6.8, True),
+        ("cs10", "CS à 10 min", "", 75, 65, True),
+        ("gd15", "Écart d'or à 15 min", "or", 0, -400, True),
+        ("deaths", "Morts par partie", "", 4.5, 5.5, False),
+        ("deaths_pre15", "Morts avant 15 min", "", 1.0, 1.5, False),
+        ("kp", "Participation aux kills", "%", 55, 50, True),
+        ("dmg_share", "Part des dégâts de l'équipe", "%", 25, 21, True),
+        ("control_wards", "Control wards", "", 1.5, 1, True),
+        ("pool_share", "Parties sur ton pool", "%", 80, 60, True),
+    ],
+    "drills": {
+        "cs_min": [
+            ("m-cs-roam", "Farmer entre deux roams", ["Avant de roam, pousser la vague dans sa tour", "Revenir à temps pour la vague suivante", "Viser 7,5 CS/min"]),
+            ("m-cs-side", "Prendre les vagues latérales", ["Après la première tour mid, prendre la vague bot ou top la plus proche", "Seulement si 3 adversaires sont visibles", "Revenir au mid avant que la vague ne crash ta tour"]),
+        ],
+        "cs10": [
+            ("m-l10-spell", "Last-hit sous pression", ["N'utiliser un sort sur la vague que pour 2 last-hits ou plus", "Garder ton mana pour répondre à ses échanges", "Viser 75 CS à 10 min"]),
+            ("m-l10-trade", "Échanger sans perdre de CS", ["N'échanger que quand aucun sbire n'est à un coup", "Reculer derrière ta vague après l'échange", "Ne lâcher aucun sbire canon"]),
+        ],
+        "gd15": [
+            ("m-gd-prio", "Garder la priorité de vague", ["Pousser la vague avant chaque fight de scuttle ou de dragon", "Arriver avant le mid adverse sur la rivière", "Ne pas suivre un roam sans avoir poussé ta vague"]),
+            ("m-gd-punish", "Punir ses last-hits", ["Quand il avance pour un sbire, le toucher avec une auto ou un sort", "Reculer aussitôt derrière ta vague", "Viser un échange gagnant par vague"]),
+        ],
+        "deaths": [
+            ("m-d-vision", "Pas de face-check", ["Ne jamais entrer dans un bush sans vision ni allié devant", "Utiliser une ward ou un sort de repérage avant d'avancer", "Viser 4 morts maximum"]),
+            ("m-d-side", "Pas de side lane sans info", ["Push une side lane seulement si 3 adversaires sont visibles", "Ward à mi-chemin avant de dépasser la rivière", "Rentrer dès que 2 adversaires disparaissent"]),
+        ],
+        "deaths_pre15": [
+            ("m-e-wards", "Ward les deux côtés", ["Une ward de chaque côté de la lane avant 3:30", "La remplacer à chaque back", "Reculer quand le jungler adverse est vu du côté non wardé"]),
+            ("m-e-spikes", "Respecter ses power spikes", ["Niveau 2, 3 et 6 : savoir lequel il atteint en premier", "Reculer d'un pas quand il le prend avant toi", "Ne pas échanger contre un composant qu'il vient d'acheter"]),
+        ],
+        "kp": [
+            ("m-kp-roam", "Roam après chaque push", ["Pousser la vague, puis regarder la lane du côté de ton jungler", "Roam seulement si la lane ciblée est prête (vague vers ta tour, adversaire avancé)", "Viser 55 % de participation"]),
+            ("m-kp-follow", "Suivre ton jungler", ["Quand ton jungler arrive près du mid, pousser et l'accompagner sur le scuttle ou l'invade", "Pinger avant de quitter la lane", "Ne jamais le laisser seul contre deux"]),
+        ],
+        "dmg_share": [
+            ("m-dmg-fight", "Rester dans le fight", ["En fight, toucher la cible la plus proche plutôt que de chercher le carry", "Garder un sort pour le second engage", "Viser 25 % des dégâts de l'équipe"]),
+        ],
+        "control_wards": [
+            ("m-cw-river", "Control ward en rivière", ["Une control ward dans un bush de rivière à chaque back", "En milieu de partie, en placer une au prochain objectif", "Viser 2 par partie"]),
+        ],
+        "pool_share": POOL_DRILL,
+        "close": [
+            ("m-c-close", "Fermer les parties", ["Après un fight gagné, choisir Baron, tour ou reset avant de bouger", "Pinger la décision à l'équipe", "Ne pas aller farmer seul une vague éloignée quand l'équipe est groupée"]),
+        ],
+    },
+}
+
+SUPPORT = {
+    "label": "Support", "short": "SUP", "position": "UTILITY", "file": "matchups-support.json",
+    "card": ["kp", "vision_min", "control_wards", "deaths_pre15"],
+    "enemy": "Support adverse", "enemy_q": "Quel support en face ?", "champs_label": "Tous les supports",
+    "aggressive": {"leona", "nautilus", "blitzcrank", "pyke", "thresh", "rell", "alistar", "rakan", "pantheon",
+                   "brand", "zyra", "xerath", "velkoz", "poppy"},
+    "aggr_label": "Support d'engage / poke", "calm_label": "Enchanteur / scaling", "plan_title": "Plan de lane",
+    "plan_aggr": ["Reste derrière tes sbires : son engage ne doit jamais toucher ton ADC sans réponse de ta part.",
+                  "Garde ton sort de désengagement ou ton bouclier pour son engage, pas pour échanger.",
+                  "Ward le tribush à 2:45 et place-toi pour couvrir le gank de son jungler.",
+                  "Joue pour les fights à 4 ou 5 autour du dragon, où tes sorts valent plus que les siens."],
+    "plan_calm": ["Prends le niveau 2 en premier avec ton ADC et engage tout de suite.",
+                  "Prends l'espace dans les bushes de lane pour qu'il ne puisse plus last-hit tranquillement.",
+                  "Quand la vague est poussée, roam mid ou ward la jungle adverse avec ton jungler.",
+                  "Prépare la vision du dragon 60 s avant son apparition."],
+    "charts": [("vision_min", "Score de vision par minute", 2.2, "", "de vision/min"), ("kp", "Participation aux kills", 60, "%", "de participation")],
+    "form": ["vision_min"],
+    "metrics": [
+        ("vision_min", "Score de vision par minute", "", 2.2, 1.8, True),
+        ("control_wards", "Control wards", "", 3, 2, True),
+        ("kp", "Participation aux kills", "%", 60, 55, True),
+        ("deaths", "Morts par partie", "", 5.0, 6.0, False),
+        ("deaths_pre15", "Morts avant 15 min", "", 1.5, 2.0, False),
+        ("pool_share", "Parties sur ton pool", "%", 80, 60, True),
+    ],
+    "drills": {
+        "vision_min": [
+            ("s-v-plan", "Plan de vision par phase", ["Phase de lane : tribush et rivière bot", "Avant chaque dragon : 2 wards autour de la fosse 60 s avant", "Passer à l'Oracle Lens dès que ta quête de support est finie"]),
+            ("s-v-sweep", "Nettoyer avant de warder", ["Avant chaque objectif, passer l'Oracle Lens dans la zone", "Remplacer chaque ward adverse détruite par la tienne", "Viser 2,2 de vision par minute"]),
+        ],
+        "control_wards": [
+            ("s-cw-buy", "Control wards à chaque back", ["En acheter 2 à chaque retour s'il y a la place", "En poser une avant même de revenir en lane", "Viser 3 par partie"]),
+        ],
+        "kp": [
+            ("s-kp-roam", "Roam au bon moment", ["Roam mid quand la vague bot est poussée vers la tour adverse", "Prévenir ton ADC avant de partir", "Viser 60 % de participation"]),
+            ("s-kp-jungle", "Jouer avec ton jungler", ["L'accompagner sur l'invade ou le scuttle quand ta lane le permet", "Ward la jungle adverse en chemin", "Revenir avant que la vague ne crash ta tour"]),
+        ],
+        "deaths": [
+            ("s-d-face", "Pas de face-check seul", ["Entrer dans un bush seulement avec une ward, un sort ou un allié", "Laisser le tank passer devant en milieu de partie", "Viser 5 morts maximum"]),
+            ("s-d-peel", "Protéger ton carry", ["En fight, rester à portée de ton ADC", "Garder ton contrôle pour l'assassin qui plonge sur lui", "Ne pas engager si ton ADC n'est pas à portée"]),
+        ],
+        "deaths_pre15": [
+            ("s-e-jungler", "Respecter le jungler adverse", ["Ward le tribush ou la rivière à 2:45", "S'il n'est pas montré depuis 30 s, ne pas avancer dans les bushes de lane", "Garder le Flash pour son premier gank"]),
+            ("s-e-lvl2", "Gérer le niveau 2", ["Repérer qui prend le niveau 2 en premier (7e sbire de la vague 2)", "S'ils le prennent avant, reculer d'un pas", "Si c'est vous, engager tout de suite"]),
+        ],
+        "pool_share": POOL_DRILL,
+        "close": [
+            ("s-c-vision", "Vision de fin de partie", ["Après 20 min, ne jamais warder seul dans la jungle adverse", "Warder en groupe autour du Baron ou de l'Âme", "Pinger les adversaires manquants"]),
+        ],
+    },
+}
+
+ROLES = {"top": TOP, "jungle": JUNGLE, "mid": MID, "adc": ADC, "support": SUPPORT}
+POSITIONS = {cfg["position"]: role for role, cfg in ROLES.items()}     # teamPosition de Riot -> rôle
 DRILLS = {f"{role}:{cat}": ds for role, cfg in ROLES.items() for cat, ds in cfg["drills"].items()}
 DRILL_INDEX = {d[0]: (cat, d[1], d[2]) for cat, ds in DRILLS.items() for d in ds}
-STAT_KEYS = ("kp", "deaths", "deaths_pre15", "cs_min", "control_wards", "obj_lost_free", "cs10", "gd15", "dmg_share")
+STAT_KEYS = ("kp", "deaths", "deaths_pre15", "cs_min", "control_wards", "obj_lost_free", "cs10", "gd15", "dmg_share", "vision_min")
+STAT_LABELS = {"kp": "KP", "cs_min": "CS/min", "deaths_pre15": "Morts <15", "control_wards": "Pinks", "cs10": "CS 10'",
+               "gd15": "Or 15'", "vision_min": "Vision/min", "dmg_share": "Dégâts"}
 
 
-def role_of(account):
-    return account["role"] if account and account["role"] in ROLES else "jungle"
+def role_drills(role):
+    return ROLES[role]["drills"] if role in ROLES else {}
 
 
 COMFORT = {5: "Main", 4: "Très à l'aise", 3: "À l'aise", 2: "Correct", 1: "En apprentissage"}
@@ -441,7 +626,7 @@ def metric_chart(games, key, target, unit, name, label):
     y = lambda v: 100 * (hi - v) / (hi - lo)
     avg = [sum(vals[max(0, i - 4):i + 1]) / len(vals[max(0, i - 4):i + 1]) for i in range(len(vals))]
     decimals = 1 if unit == "" and any(v != int(v) for v in vals) else 0
-    fmt = lambda v: num(v, decimals) + (" %" if unit == "%" else "")
+    fmt = lambda v: f"{v:+.0f}".replace("-", "−") if unit == "or" else num(v, decimals) + (" %" if unit == "%" else "")
     tick_dec = 0 if all(float(t).is_integer() for t in ticks) else 1
     path = lambda series: " ".join(f"{'M' if i == 0 else 'L'}{xs[i]:.2f},{y(v):.2f}" for i, v in enumerate(series))
     line = path(vals)
@@ -452,7 +637,7 @@ def metric_chart(games, key, target, unit, name, label):
         "target": {"y": y(target), "label": "cible " + f"{target:g}".replace(".", ",") + (" %" if unit == "%" else "")},
         "points": [{"x": xs[i], "y": y(v), "cls": g["result"], "value": f"{fmt(v)} {label}", "tip": game_caption(g, name)}
                    for i, (g, v) in enumerate(zip(pts, vals))],
-        "last": fmt(vals[-1]), "mean": num(sum(vals) / len(vals), 0 if unit == "%" else 1) + (" %" if unit == "%" else ""),
+        "last": fmt(vals[-1]), "mean": fmt(sum(vals) / len(vals)) if unit == "or" else num(sum(vals) / len(vals), 0 if unit == "%" else 1) + (" %" if unit == "%" else ""),
     }
 
 

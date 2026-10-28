@@ -160,21 +160,25 @@ def frame_at(timeline, minute):
     return frames[minute] if len(frames) > minute else None
 
 
-def parse_game(m, timeline, pid, position="JUNGLE"):
-    """Transforme une partie Match-V5 et sa chronologie en ligne de la table games.
-    position : JUNGLE ou BOTTOM selon le rôle suivi par le compte.
-    Renvoie (game, raison) : game vaut None si la partie est ignorée (remake, autre rôle)."""
+POSITIONS = {"TOP": "top", "JUNGLE": "jungle", "MIDDLE": "mid", "BOTTOM": "adc", "UTILITY": "support"}
+
+
+def parse_game(m, timeline, pid):
+    """Transforme une partie Match-V5 et sa chronologie en ligne de la table games, quel que soit le rôle joué :
+    le rôle vient du poste attribué par Riot (teamPosition), l'adversaire est le joueur du même poste en face.
+    Renvoie (game, raison) : game vaut None si la partie est ignorée (remake, poste inconnu)."""
     info = m["info"]
     me = next((p for p in info["participants"] if p["puuid"] == pid), None)
     if not me:
-        return None, "joueur absent"
+        return None, "absent"
     duration = info["gameDuration"] if "gameEndTimestamp" in info else info["gameDuration"] / 1000
     if duration < 300 or me.get("gameEndedInEarlySurrender"):
         return None, "remake"
-    if me.get("teamPosition") != position:
-        return None, "autre rôle"
+    position = me.get("teamPosition") or me.get("individualPosition")
+    if position not in POSITIONS:
+        return None, "poste inconnu"
     team = me["teamId"]
-    enemy = next((p for p in info["participants"] if p["teamId"] != team and p.get("teamPosition") == position), None)
+    enemy = next((p for p in info["participants"] if p["teamId"] != team and (p.get("teamPosition") or p.get("individualPosition")) == position), None)
 
     team_kills = sum(p["kills"] for p in info["participants"] if p["teamId"] == team)
     kp = me.get("challenges", {}).get("killParticipation")
@@ -221,4 +225,6 @@ def parse_game(m, timeline, pid, position="JUNGLE"):
         "cs10": cs10,
         "gd15": gd15,
         "dmg_share": round(100 * share) if share is not None else None,
+        "vision_min": round(me["visionScore"] / (duration / 60), 2) if me.get("visionScore") is not None else None,
+        "role": POSITIONS[position],
     }, None

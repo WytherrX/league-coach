@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import icon, match_compact, chart, chart_legend %}
+{% from "_macros.html" import icon, match_compact, chart, chart_legend, role_tabs, rbadge %}
 {% block title %}Tableau de bord · League Coach{% endblock %}
 {% block content %}
 {% set slug = account.riot_id.replace('#','-') %}
@@ -8,7 +8,7 @@
 <header class="profile">
   <div class="pf-icon">
     {% if main_champ %}<img src="{{ champ_icon(main_champ) }}" alt="" onerror="this.style.visibility='hidden'">{% else %}<span class="ph" style="display:block"></span>{% endif %}
-    <span class="role">{{ ROLE.short }}</span>
+    {% if tab != 'all' %}<span class="role">{{ ROLE.short }}</span>{% endif %}
   </div>
   <div class="pf-main">
     <div class="pf-name">{{ name }} <span class="tag">#{{ tag }}</span></div>
@@ -20,10 +20,18 @@
     </div>
   </div>
   <div class="seg" role="group" aria-label="Période analysée">
-    {% for k in [10, 20, 50] %}<a href="/?n={{ k }}" class="{{ 'on' if n == k }}">{{ k }}<span class="hide-sm"> dernières</span></a>{% endfor %}
+    {% for k in [10, 20, 50] %}<a href="/?n={{ k }}{{ ('&role=' ~ tab) if tab != 'all' }}" class="{{ 'on' if n == k }}">{{ k }}<span class="hide-sm"> dernières</span></a>{% endfor %}
   </div>
 </header>
 
+{{ role_tabs('/?n=' ~ n, tab, counts, all=True, only_played=True) }}
+
+{% if to_review %}
+<div class="hint"><b>{{ to_review }} partie{{ 's' if to_review > 1 }} importée{{ 's' if to_review > 1 }} à compléter</b> : indique si tu as tenu ton objectif et note une leçon dans <a href="/games">Parties</a>.</div>
+{% endif %}
+
+{% if tab == 'all' %}
+{# ================= Vue d'ensemble : tous les rôles ================= #}
 <section class="panel lp-panel" aria-labelledby="h-lp">
   <div class="panel-h">
     <h2 id="h-lp">Évolution des LP</h2>
@@ -38,12 +46,30 @@
   {% else %}<div class="empty">{% if RIOT %}La courbe apparaît après deux parties synchronisées : le rang est relevé après chaque partie classée.{% else %}Indique ton rang après tes parties dans <a href="/games">Parties</a> pour tracer la courbe.{% endif %}</div>{% endif %}
 </section>
 
-{% if to_review %}
-<div class="hint"><b>{{ to_review }} partie{{ 's' if to_review > 1 }} importée{{ 's' if to_review > 1 }} à compléter</b> : indique si tu as tenu ton objectif et note une leçon dans <a href="/games">Parties</a>.</div>
-{% endif %}
-{% if not pool %}
-<div class="hint">Ton champion pool est vide : <a href="/pool">choisis tes champions</a> pour obtenir des counters et des bans adaptés.</div>
-{% endif %}
+<section class="stack" style="gap:10px" aria-labelledby="h-roles">
+  <div class="panel-h"><h2 id="h-roles">Tes rôles</h2><span class="label">{{ n }} dernières parties · un objectif par rôle</span></div>
+  {% if roles %}
+  <div class="rolecards">
+    {% for r in roles %}
+    {% set wr = 100 * r.w / r.n %}
+    <a class="rcard r-{{ r.role }}" href="/?n={{ n }}&role={{ r.role }}">
+      <div class="rh">
+        <span class="rn"><i class="rdot"></i>{{ ROLES[r.role].label }}</span>
+        <span class="rs"><span><b>{{ r.n }}</b> partie{{ 's' if r.n > 1 }}</span><b class="{{ wr_class(wr) }}">{{ wr|fr(0) }} %</b>
+          {% if r.lp is not none %}<b style="color:var(--{{ 'win' if r.lp >= 0 else 'loss' }})">{{ '+' if r.lp > 0 }}{{ r.lp|string|replace('-', '−') }} LP</b>{% endif %}</span>
+      </div>
+      <div class="rf">
+        <span class="label">Objectif de ta prochaine partie</span>
+        <b>{{ r.focus.title }}</b>
+        <span class="muted small">{% if r.focus.reason %}Point faible : {{ r.focus.reason|lcfirst }}{% else %}Indicateurs dans les cibles{% endif %}{% if r.focus.tries %} · tenu {{ r.focus.ok }}/{{ r.focus.tries }}{% endif %}</span>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty">Aucune partie sur la période. {% if RIOT %}Tes parties classées sont importées automatiquement, quel que soit le rôle joué.{% else %}Enregistre tes parties dans <a href="/games">Parties</a>.{% endif %}</div>
+  {% endif %}
+</section>
 
 <div class="layout">
   <aside class="stack">
@@ -61,42 +87,56 @@
       <div class="wl-txt"><span><b style="color:var(--win)">{{ wins }}V</b> <b style="color:var(--loss)">{{ metrics.games - wins }}D</b></span><b class="{{ wr_class(metrics.winrate) }}">{{ (metrics.winrate)|fr(0) }} %</b></div>
       <div class="wl" aria-hidden="true"><i style="width:{{ metrics.winrate }}%"></i></div>
       {% endif %}
+      {% if roles %}
+      <span class="label" style="margin-top:6px">Répartition des rôles</span>
+      <div class="rbar" role="img" aria-label="{% for r in roles %}{{ ROLES[r.role].label }} {{ r.n }}{{ ', ' if not loop.last }}{% endfor %}">{% for r in roles %}<i class="r-{{ r.role }}" style="flex:{{ r.n }}"></i>{% endfor %}</div>
+      <div class="chips">{% for r in roles %}<span class="small muted">{{ rbadge(r.role) }} {{ (100 * r.n / metrics.games)|fr(0) }} %</span>{% endfor %}</div>
+      {% endif %}
     </section>
+    {{ champs_panel() }}
+  </aside>
 
-    <section class="panel flush">
-      <div class="panel-h"><h2>Champions joués</h2><span class="label">{{ n }} dernières</span></div>
-      <div class="body">
-      {% for s in champ_stats %}
-        {% set r, rc = kda(s.k, s.d, s.a) if s.kn else (none, '') %}
-        <div class="crow">
-          {{ icon(s.champ) }}
-          <div style="min-width:0"><div class="nm">{{ champ_name(s.champ) }}</div>
-            <div class="sub">{% if s.kn %}<b class="{{ rc }}">{{ r|fr(2) }}</b> KDA · {{ (s.k / s.kn)|fr }} / {{ (s.d / s.kn)|fr }} / {{ (s.a / s.kn)|fr }}{% else %}KDA non saisi{% endif %}</div></div>
-          <div class="rt"><b class="{{ wr_class(100 * s.w / s.n) }}">{{ (100 * s.w / s.n)|fr(0) }} %</b><span class="muted">{{ s.n }} partie{{ 's' if s.n > 1 }}</span></div>
-        </div>
-      {% else %}
-        <div class="none">Aucune partie sur la période.</div>
-      {% endfor %}
-      </div>
+  <div class="stack">
+    {{ kpi_row(streak_kpi=True) }}
+    {{ recent_and_drills(show_role=True) }}
+  </div>
+</div>
+
+{% else %}
+{# ================= Un rôle ================= #}
+{% if not pool %}
+<div class="hint">Ton pool {{ ROLE.label }} est vide : <a href="/pool?role={{ role }}">choisis tes champions</a> pour obtenir des counters et des bans adaptés.</div>
+{% endif %}
+
+<div class="layout">
+  <aside class="stack">
+    <section class="panel">
+      <span class="label">{{ ROLE.label }} · {{ n }} dernières</span>
+      {% if metrics.games %}
+      <div class="wl-txt"><span><b style="color:var(--win)">{{ wins }}V</b> <b style="color:var(--loss)">{{ metrics.games - wins }}D</b></span><b class="{{ wr_class(metrics.winrate) }}">{{ (metrics.winrate)|fr(0) }} %</b></div>
+      <div class="wl" aria-hidden="true"><i style="width:{{ metrics.winrate }}%"></i></div>
+      {% else %}<div class="muted small">Aucune partie dans ce rôle.</div>{% endif %}
     </section>
+    {{ champs_panel() }}
 
     {% if hard %}
     <section class="panel">
       <h2>Matchups difficiles pour toi</h2>
-      <div class="chips">{% for e, n_, w in hard %}<a class="chip" href="/counters?enemy={{ e }}">{{ icon(e) }}{{ champ_name(e) }} <span class="wr-bad num">{{ w }}V-{{ n_ - w }}D</span></a>{% endfor %}</div>
+      <div class="chips">{% for e, n_, w in hard %}<a class="chip" href="/counters?role={{ role }}&enemy={{ e }}">{{ icon(e) }}{{ champ_name(e) }} <span class="wr-bad num">{{ w }}V-{{ n_ - w }}D</span></a>{% endfor %}</div>
     </section>
     {% endif %}
 
     <section class="panel">
       <div class="panel-h"><h2>Draft rapide</h2></div>
       <form method="get" action="/counters" class="inline">
+        <input type="hidden" name="role" value="{{ role }}">
         <label class="field" style="flex:1;min-width:150px"><span>{{ ROLE.enemy }}</span>
-          <select name="enemy" id="q-enemy">{% for c in all_champs %}<option value="{{ c }}">{{ champ_name(c) }}</option>{% endfor %}</select></label>
+          <select name="enemy" id="q-enemy">{% for c in enemies %}<option value="{{ c }}">{{ champ_name(c) }}</option>{% endfor %}</select></label>
         <button class="btn" type="submit">Counter</button>
       </form>
       {% if bans %}
       <div class="stack" style="gap:6px"><span class="label">Bans conseillés pour ton pool</span>
-        <div class="chips">{% for e, wr in bans %}<a class="chip" href="/counters?enemy={{ e }}">{{ icon(e) }}{{ champ_name(e) }} <span class="{{ wr_class(wr) }} num">{{ (wr)|fr }} %</span></a>{% endfor %}</div>
+        <div class="chips">{% for e, wr in bans %}<a class="chip" href="/counters?role={{ role }}&enemy={{ e }}">{{ icon(e) }}{{ champ_name(e) }} <span class="{{ wr_class(wr) }} num">{{ (wr)|fr }} %</span></a>{% endfor %}</div>
       </div>
       {% endif %}
     </section>
@@ -104,26 +144,18 @@
 
   <div class="stack">
     <section class="focus" aria-labelledby="h-focus">
-      <span class="label" id="h-focus">Objectif de ta prochaine partie</span>
+      <span class="label" id="h-focus">Objectif de ta prochaine partie en {{ ROLE.label }}</span>
       <span class="ft">{{ focus.title }}</span>
-      <p class="muted">{% if focus.reason %}Ton point faible n° 1 : <b style="color:var(--ink)">{{ focus.reason|lower }}</b>.{% else %}Tes indicateurs sont dans les cibles : travaille la fin de partie.{% endif %}
+      <p class="muted">{% if focus.reason %}Ton point faible n° 1 : <b style="color:var(--ink)">{{ focus.reason|lcfirst }}</b>.{% else %}Tes indicateurs sont dans les cibles : travaille la fin de partie.{% endif %}
          {% if focus.tries %}Tenu {{ focus.ok }} fois sur {{ focus.tries }}.{% else %}Jamais travaillé jusqu'ici.{% endif %}</p>
       <ol>{% for s in focus.steps %}<li>{{ s }}</li>{% endfor %}</ol>
-      <p class="muted small">Après la partie, indique dans <a href="/games">Parties</a> si tu as tenu cet objectif.</p>
+      <p class="muted small">Après la partie, indique dans <a href="/games?role={{ role }}">Parties</a> si tu as tenu cet objectif.</p>
     </section>
 
-    {% if metrics.games %}
-    {% set kr, krc = kda(totals.k, totals.d, totals.a) if totals.kn else (none, '') %}
-    <div class="kpis">
-      <div class="kpi acc"><span class="label">Winrate</span><span class="v {{ wr_class(metrics.winrate) }}">{{ (metrics.winrate)|fr(0) }} %</span><span class="t">{{ metrics.games }} partie{{ 's' if metrics.games > 1 }}</span></div>
-      <div class="kpi"><span class="label">KDA moyen</span><span class="v {{ krc }}">{{ (kr|fr(2)) if kr is not none else '—' }}</span><span class="t">{% if totals.kn %}{{ (totals.k / totals.kn)|fr }} / {{ (totals.d / totals.kn)|fr }} / {{ (totals.a / totals.kn)|fr }}{% else %}non saisi{% endif %}</span></div>
-      <div class="kpi {{ 'good' if streak[1] == 'W' else 'bad' }}"><span class="label">Série en cours</span><span class="v" style="color:var(--{{ 'win' if streak[1] == 'W' else 'loss' }})">{{ streak[0] }} {{ 'V' if streak[1] == 'W' else 'D' }}</span><span class="t">{{ 'victoire' if streak[1] == 'W' else 'défaite' }}{{ 's' if streak[0] > 1 }} d'affilée</span></div>
-      <div class="kpi"><span class="label">Objectifs tenus</span><span class="v">{{ ((metrics.focus_rate)|fr(0) ~ ' %') if metrics.focus_rate is not none else '—' }}</span><span class="t">parties avec un objectif noté</span></div>
-    </div>
-    {% endif %}
+    {{ kpi_row(streak_kpi=False) }}
 
     <section class="panel" aria-labelledby="h-weak">
-      <div class="panel-h"><h2 id="h-weak">Points faibles</h2><span class="label">{{ metrics.games }} partie{{ 's' if metrics.games > 1 }}</span></div>
+      <div class="panel-h"><h2 id="h-weak">Points faibles en {{ ROLE.label }}</h2><span class="label">{{ metrics.games }} partie{{ 's' if metrics.games > 1 }}</span></div>
       {% if metrics.games %}
       <div class="weak">
         {% for r in weak %}
@@ -136,7 +168,7 @@
         {% endfor %}
       </div>
       {% else %}
-      <div class="empty">Enregistre tes premières parties dans <a href="/games">Parties</a> : tes points faibles apparaîtront ici.</div>
+      <div class="empty">Pas encore de partie en {{ ROLE.label }} : tes points faibles apparaîtront ici dès la première.</div>
       {% endif %}
     </section>
 
@@ -149,26 +181,65 @@
       </div>
       {% endfor %}
     </section>
-
-    <div class="cols">
-      <section class="panel flush" aria-labelledby="h-last">
-        <div class="panel-h"><h2 id="h-last">Dernières parties</h2><a href="/games" class="small">Tout voir</a></div>
-        <div class="body"><div class="matches">{% for g in games %}{{ match_compact(g) }}{% endfor %}</div></div>
-      </section>
-      <section class="panel flush" aria-labelledby="h-drills">
-        <div class="panel-h"><h2 id="h-drills">Suivi des objectifs</h2></div>
-        {% if drills %}
-        <div class="tbl"><table>
-          <thead><tr><th>Objectif</th><th class="n">Parties</th><th class="n">Tenu</th></tr></thead>
-          <tbody>{% for d, (t, ok) in drills|dictsort(by='value', reverse=true) %}
-            {% set rate = 100 * ok / t %}
-            <tr><td>{{ DRILL_INDEX[d][1] if d in DRILL_INDEX else d }}</td><td class="n">{{ t }}</td><td class="n"><b class="{{ 'wr-great' if rate >= 70 else 'wr-good' if rate >= 50 else 'wr-bad' }}">{{ rate|fr(0) }} %</b> <span class="dim">{{ ok }}/{{ t }}</span></td></tr>
-          {% endfor %}</tbody>
-        </table></div>
-        {% else %}<div class="body"><div class="empty">Aucun objectif noté pour l'instant.</div></div>{% endif %}
-      </section>
-    </div>
+    {{ recent_and_drills(show_role=False) }}
     {% endif %}
   </div>
 </div>
+{% endif %}
 {% endblock %}
+
+{% macro champs_panel() %}
+<section class="panel flush">
+  <div class="panel-h"><h2>Champions joués</h2><span class="label">{{ n }} dernières</span></div>
+  <div class="body">
+  {% for s in champ_stats %}
+    {% set r, rc = kda(s.k, s.d, s.a) if s.kn else (none, '') %}
+    <div class="crow">
+      {{ icon(s.champ) }}
+      <div style="min-width:0"><div class="nm">{{ champ_name(s.champ) }}</div>
+        <div class="sub">{% if s.kn %}<b class="{{ rc }}">{{ r|fr(2) }}</b> KDA · {{ (s.k / s.kn)|fr }} / {{ (s.d / s.kn)|fr }} / {{ (s.a / s.kn)|fr }}{% else %}KDA non saisi{% endif %}</div></div>
+      <div class="rt"><b class="{{ wr_class(100 * s.w / s.n) }}">{{ (100 * s.w / s.n)|fr(0) }} %</b><span class="muted">{{ s.n }} partie{{ 's' if s.n > 1 }}</span></div>
+    </div>
+  {% else %}
+    <div class="none">Aucune partie sur la période.</div>
+  {% endfor %}
+  </div>
+</section>
+{% endmacro %}
+
+{% macro kpi_row(streak_kpi) %}
+{% if metrics.games %}
+{% set kr, krc = kda(totals.k, totals.d, totals.a) if totals.kn else (none, '') %}
+<div class="kpis">
+  <div class="kpi acc"><span class="label">Winrate</span><span class="v {{ wr_class(metrics.winrate) }}">{{ (metrics.winrate)|fr(0) }} %</span><span class="t">{{ metrics.games }} partie{{ 's' if metrics.games > 1 }}</span></div>
+  <div class="kpi"><span class="label">KDA moyen</span><span class="v {{ krc }}">{{ (kr|fr(2)) if kr is not none else '—' }}</span><span class="t">{% if totals.kn %}{{ (totals.k / totals.kn)|fr }} / {{ (totals.d / totals.kn)|fr }} / {{ (totals.a / totals.kn)|fr }}{% else %}non saisi{% endif %}</span></div>
+  {% if streak_kpi %}
+  <div class="kpi {{ 'good' if streak[1] == 'W' else 'bad' }}"><span class="label">Série en cours</span><span class="v" style="color:var(--{{ 'win' if streak[1] == 'W' else 'loss' }})">{{ streak[0] }} {{ 'V' if streak[1] == 'W' else 'D' }}</span><span class="t">{{ 'victoire' if streak[1] == 'W' else 'défaite' }}{{ 's' if streak[0] > 1 }} d'affilée</span></div>
+  {% else %}
+  <div class="kpi {{ 'good' if (lp_net or 0) > 0 else 'bad' if (lp_net or 0) < 0 else '' }}"><span class="label">LP sur ce rôle</span><span class="v" style="color:var(--{{ 'win' if (lp_net or 0) >= 0 else 'loss' }})">{% if lp_net is not none %}{{ '+' if lp_net > 0 }}{{ lp_net|string|replace('-', '−') }}{% else %}—{% endif %}</span><span class="t">{% if lp_n %}sur {{ lp_n }} partie{{ 's' if lp_n > 1 }} relevée{{ 's' if lp_n > 1 }}{% else %}aucun relevé de LP{% endif %}</span></div>
+  {% endif %}
+  <div class="kpi"><span class="label">Objectifs tenus</span><span class="v">{{ ((metrics.focus_rate)|fr(0) ~ ' %') if metrics.focus_rate is not none else '—' }}</span><span class="t">parties avec un objectif noté</span></div>
+</div>
+{% endif %}
+{% endmacro %}
+
+{% macro recent_and_drills(show_role) %}
+<div class="cols">
+  <section class="panel flush" aria-labelledby="h-last">
+    <div class="panel-h"><h2 id="h-last">Dernières parties</h2><a href="/games{{ ('?role=' ~ tab) if tab != 'all' }}" class="small">Tout voir</a></div>
+    <div class="body">{% if games %}<div class="matches">{% for g in games %}{{ match_compact(g, show_role=show_role) }}{% endfor %}</div>{% else %}<div class="none">Aucune partie.</div>{% endif %}</div>
+  </section>
+  <section class="panel flush" aria-labelledby="h-drills">
+    <div class="panel-h"><h2 id="h-drills">Suivi des objectifs</h2>{% if drills|length > 10 %}<span class="label">10 plus travaillés sur {{ drills|length }}</span>{% endif %}</div>
+    {% if drills %}
+    <div class="tbl"><table>
+      <thead><tr><th>Objectif</th><th class="n">Parties</th><th class="n">Tenu</th></tr></thead>
+      <tbody>{% for d, (t, ok) in (drills|dictsort(by='value', reverse=true))[:10] %}
+        {% set rate = 100 * ok / t %}
+        <tr><td>{{ DRILL_INDEX[d][1] if d in DRILL_INDEX else d }}{% if show_role and d in DRILL_INDEX %} <span class="dim small">{{ ROLES[DRILL_INDEX[d][0].split(':')[0]].label if DRILL_INDEX[d][0].split(':')[0] in ROLES }}</span>{% endif %}</td><td class="n">{{ t }}</td><td class="n"><b class="{{ 'wr-great' if rate >= 70 else 'wr-good' if rate >= 50 else 'wr-bad' }}">{{ rate|fr(0) }} %</b> <span class="dim">{{ ok }}/{{ t }}</span></td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+    {% else %}<div class="body"><div class="empty">Aucun objectif noté pour l'instant.</div></div>{% endif %}
+  </section>
+</div>
+{% endmacro %}

@@ -1,0 +1,697 @@
+{
+"ddragon": "16.21.1",
+"champions": {
+"aatrox": {
+"img": "Aatrox",
+"name": "Aatrox"
+},
+"ahri": {
+"img": "Ahri",
+"name": "Ahri"
+},
+"akali": {
+"img": "Akali",
+"name": "Akali"
+},
+"akshan": {
+"img": "Akshan",
+"name": "Akshan"
+},
+"alistar": {
+"img": "Alistar",
+"name": "Alistar"
+},
+"ambessa": {
+"img": "Ambessa",
+"name": "Ambessa"
+},
+"amumu": {
+"img": "Amumu",
+"name": "Amumu"
+},
+"anivia": {
+"img": "Anivia",
+"name": "Anivia"
+},
+"annie": {
+"img": "Annie",
+"name": "Annie"
+},
+"aphelios": {
+"img": "Aphelios",
+"name": "Aphelios"
+},
+"ashe": {
+"img": "Ashe",
+"name": "Ashe"
+},
+"aurelionsol": {
+"img": "AurelionSol",
+"name": "Aurelion Sol"
+},
+"aurora": {
+"img": "Aurora",
+"name": "Aurora"
+},
+"azir": {
+"img": "Azir",
+"name": "Azir"
+},
+"bard": {
+"img": "Bard",
+"name": "Bard"
+},
+"belveth": {
+"img": "Belveth",
+"name": "Bel'Veth"
+},
+"blitzcrank": {
+"img": "Blitzcrank",
+"name": "Blitzcrank"
+},
+"brand": {
+"img": "Brand",
+"name": "Brand"
+},
+"braum": {
+"img": "Braum",
+"name": "Braum"
+},
+"briar": {
+"img": "Briar",
+"name": "Briar"
+},
+"caitlyn": {
+"img": "Caitlyn",
+"name": "Caitlyn"
+},
+"camille": {
+"img": "Camille",
+"name": "Camille"
+},
+"cassiopeia": {
+"img": "Cassiopeia",
+"name": "Cassiopeia"
+},
+"chogath": {
+"img": "Chogath",
+"name": "Cho'Gath"
+},
+"corki": {
+"img": "Corki",
+"name": "Corki"
+},
+"darius": {
+"img": "Darius",
+"name": "Darius"
+},
+"diana": {
+"img": "Diana",
+"name": "Diana"
+},
+"drmundo": {
+"img": "DrMundo",
+"name": "Dr. Mundo"
+},
+"draven": {
+"img": "Draven",
+"name": "Draven"
+},
+"ekko": {
+"img": "Ekko",
+"name": "Ekko"
+},
+"elise": {
+"img": "Elise",
+"name": "Elise"
+},
+"evelynn": {
+"img": "Evelynn",
+"name": "Evelynn"
+},
+"ezreal": {
+"img": "Ezreal",
+"name": "Ezreal"
+},
+"fiddlesticks": {
+"img": "Fiddlesticks",
+"name": "Fiddlesticks"
+},
+"fiora": {
+"img": "Fiora",
+"name": "Fiora"
+},
+"fizz": {
+"img": "Fizz",
+"name": "Fizz"
+},
+"galio": {
+"img": "Galio",
+"name": "Galio"
+},
+"gangplank": {
+"img": "Gangplank",
+"name": "Gangplank"
+},
+"garen": {
+"img": "Garen",
+"name": "Garen"
+},
+"gnar": {
+"img": "Gnar",
+"name": "Gnar"
+},
+"gragas": {
+"img": "Gragas",
+"name": "Gragas"
+},
+"graves": {
+"img": "Graves",
+"name": "Graves"
+},
+"gwen": {
+"img": "Gwen",
+"name": "Gwen"
+},
+"hecarim": {
+"img": "Hecarim",
+"name": "Hecarim"
+},
+"heimerdinger": {
+"img": "Heimerdinger",
+"name": "Heimerdinger"
+},
+"hwei": {
+"img": "Hwei",
+"name": "Hwei"
+},
+"illaoi": {
+"img": "Illaoi",
+"name": "Illaoi"
+},
+"irelia": {
+"img": "Irelia",
+"name": "Irelia"
+},
+"ivern": {
+"img": "Ivern",
+"name": "Ivern"
+},
+"janna": {
+"img": "Janna",
+"name": "Janna"
+},
+"jarvaniv": {
+"img": "JarvanIV",
+"name": "Jarvan IV"
+},
+"jax": {
+"img": "Jax",
+"name": "Jax"
+},
+"jayce": {
+"img": "Jayce",
+"name": "Jayce"
+},
+"jhin": {
+"img": "Jhin",
+"name": "Jhin"
+},
+"jinx": {
+"img": "Jinx",
+"name": "Jinx"
+},
+"ksante": {
+"img": "KSante",
+"name": "K'Sante"
+},
+"kaisa": {
+"img": "Kaisa",
+"name": "Kai'Sa"
+},
+"kalista": {
+"img": "Kalista",
+"name": "Kalista"
+},
+"karma": {
+"img": "Karma",
+"name": "Karma"
+},
+"karthus": {
+"img": "Karthus",
+"name": "Karthus"
+},
+"kassadin": {
+"img": "Kassadin",
+"name": "Kassadin"
+},
+"katarina": {
+"img": "Katarina",
+"name": "Katarina"
+},
+"kayle": {
+"img": "Kayle",
+"name": "Kayle"
+},
+"kayn": {
+"img": "Kayn",
+"name": "Kayn"
+},
+"kennen": {
+"img": "Kennen",
+"name": "Kennen"
+},
+"khazix": {
+"img": "Khazix",
+"name": "Kha'Zix"
+},
+"kindred": {
+"img": "Kindred",
+"name": "Kindred"
+},
+"kled": {
+"img": "Kled",
+"name": "Kled"
+},
+"kogmaw": {
+"img": "KogMaw",
+"name": "Kog'Maw"
+},
+"leblanc": {
+"img": "Leblanc",
+"name": "LeBlanc"
+},
+"leesin": {
+"img": "LeeSin",
+"name": "Lee Sin"
+},
+"leona": {
+"img": "Leona",
+"name": "Leona"
+},
+"lillia": {
+"img": "Lillia",
+"name": "Lillia"
+},
+"lissandra": {
+"img": "Lissandra",
+"name": "Lissandra"
+},
+"locke": {
+"img": "Locke",
+"name": "Locke"
+},
+"lucian": {
+"img": "Lucian",
+"name": "Lucian"
+},
+"lulu": {
+"img": "Lulu",
+"name": "Lulu"
+},
+"lux": {
+"img": "Lux",
+"name": "Lux"
+},
+"malphite": {
+"img": "Malphite",
+"name": "Malphite"
+},
+"malzahar": {
+"img": "Malzahar",
+"name": "Malzahar"
+},
+"maokai": {
+"img": "Maokai",
+"name": "Maokai"
+},
+"masteryi": {
+"img": "MasterYi",
+"name": "Master Yi"
+},
+"mel": {
+"img": "Mel",
+"name": "Mel"
+},
+"milio": {
+"img": "Milio",
+"name": "Milio"
+},
+"missfortune": {
+"img": "MissFortune",
+"name": "Miss Fortune"
+},
+"monkeyking": {
+"img": "MonkeyKing",
+"name": "Wukong"
+},
+"mordekaiser": {
+"img": "Mordekaiser",
+"name": "Mordekaiser"
+},
+"morgana": {
+"img": "Morgana",
+"name": "Morgana"
+},
+"naafiri": {
+"img": "Naafiri",
+"name": "Naafiri"
+},
+"nami": {
+"img": "Nami",
+"name": "Nami"
+},
+"nasus": {
+"img": "Nasus",
+"name": "Nasus"
+},
+"nautilus": {
+"img": "Nautilus",
+"name": "Nautilus"
+},
+"neeko": {
+"img": "Neeko",
+"name": "Neeko"
+},
+"nidalee": {
+"img": "Nidalee",
+"name": "Nidalee"
+},
+"nilah": {
+"img": "Nilah",
+"name": "Nilah"
+},
+"nocturne": {
+"img": "Nocturne",
+"name": "Nocturne"
+},
+"nunu": {
+"img": "Nunu",
+"name": "Nunu & Willump"
+},
+"olaf": {
+"img": "Olaf",
+"name": "Olaf"
+},
+"orianna": {
+"img": "Orianna",
+"name": "Orianna"
+},
+"ornn": {
+"img": "Ornn",
+"name": "Ornn"
+},
+"pantheon": {
+"img": "Pantheon",
+"name": "Pantheon"
+},
+"poppy": {
+"img": "Poppy",
+"name": "Poppy"
+},
+"pyke": {
+"img": "Pyke",
+"name": "Pyke"
+},
+"qiyana": {
+"img": "Qiyana",
+"name": "Qiyana"
+},
+"quinn": {
+"img": "Quinn",
+"name": "Quinn"
+},
+"rakan": {
+"img": "Rakan",
+"name": "Rakan"
+},
+"rammus": {
+"img": "Rammus",
+"name": "Rammus"
+},
+"reksai": {
+"img": "RekSai",
+"name": "Rek'Sai"
+},
+"rell": {
+"img": "Rell",
+"name": "Rell"
+},
+"renata": {
+"img": "Renata",
+"name": "Renata Glasc"
+},
+"renekton": {
+"img": "Renekton",
+"name": "Renekton"
+},
+"rengar": {
+"img": "Rengar",
+"name": "Rengar"
+},
+"riven": {
+"img": "Riven",
+"name": "Riven"
+},
+"rumble": {
+"img": "Rumble",
+"name": "Rumble"
+},
+"ryze": {
+"img": "Ryze",
+"name": "Ryze"
+},
+"samira": {
+"img": "Samira",
+"name": "Samira"
+},
+"sejuani": {
+"img": "Sejuani",
+"name": "Sejuani"
+},
+"senna": {
+"img": "Senna",
+"name": "Senna"
+},
+"seraphine": {
+"img": "Seraphine",
+"name": "Seraphine"
+},
+"sett": {
+"img": "Sett",
+"name": "Sett"
+},
+"shaco": {
+"img": "Shaco",
+"name": "Shaco"
+},
+"shen": {
+"img": "Shen",
+"name": "Shen"
+},
+"shyvana": {
+"img": "Shyvana",
+"name": "Shyvana"
+},
+"singed": {
+"img": "Singed",
+"name": "Singed"
+},
+"sion": {
+"img": "Sion",
+"name": "Sion"
+},
+"sivir": {
+"img": "Sivir",
+"name": "Sivir"
+},
+"skarner": {
+"img": "Skarner",
+"name": "Skarner"
+},
+"smolder": {
+"img": "Smolder",
+"name": "Smolder"
+},
+"sona": {
+"img": "Sona",
+"name": "Sona"
+},
+"soraka": {
+"img": "Soraka",
+"name": "Soraka"
+},
+"swain": {
+"img": "Swain",
+"name": "Swain"
+},
+"sylas": {
+"img": "Sylas",
+"name": "Sylas"
+},
+"syndra": {
+"img": "Syndra",
+"name": "Syndra"
+},
+"tahmkench": {
+"img": "TahmKench",
+"name": "Tahm Kench"
+},
+"taliyah": {
+"img": "Taliyah",
+"name": "Taliyah"
+},
+"talon": {
+"img": "Talon",
+"name": "Talon"
+},
+"taric": {
+"img": "Taric",
+"name": "Taric"
+},
+"teemo": {
+"img": "Teemo",
+"name": "Teemo"
+},
+"thresh": {
+"img": "Thresh",
+"name": "Thresh"
+},
+"tristana": {
+"img": "Tristana",
+"name": "Tristana"
+},
+"trundle": {
+"img": "Trundle",
+"name": "Trundle"
+},
+"tryndamere": {
+"img": "Tryndamere",
+"name": "Tryndamere"
+},
+"twistedfate": {
+"img": "TwistedFate",
+"name": "Twisted Fate"
+},
+"twitch": {
+"img": "Twitch",
+"name": "Twitch"
+},
+"udyr": {
+"img": "Udyr",
+"name": "Udyr"
+},
+"urgot": {
+"img": "Urgot",
+"name": "Urgot"
+},
+"varus": {
+"img": "Varus",
+"name": "Varus"
+},
+"vayne": {
+"img": "Vayne",
+"name": "Vayne"
+},
+"veigar": {
+"img": "Veigar",
+"name": "Veigar"
+},
+"velkoz": {
+"img": "Velkoz",
+"name": "Vel'Koz"
+},
+"vex": {
+"img": "Vex",
+"name": "Vex"
+},
+"vi": {
+"img": "Vi",
+"name": "Vi"
+},
+"viego": {
+"img": "Viego",
+"name": "Viego"
+},
+"viktor": {
+"img": "Viktor",
+"name": "Viktor"
+},
+"vladimir": {
+"img": "Vladimir",
+"name": "Vladimir"
+},
+"volibear": {
+"img": "Volibear",
+"name": "Volibear"
+},
+"warwick": {
+"img": "Warwick",
+"name": "Warwick"
+},
+"xayah": {
+"img": "Xayah",
+"name": "Xayah"
+},
+"xerath": {
+"img": "Xerath",
+"name": "Xerath"
+},
+"xinzhao": {
+"img": "XinZhao",
+"name": "Xin Zhao"
+},
+"yasuo": {
+"img": "Yasuo",
+"name": "Yasuo"
+},
+"yone": {
+"img": "Yone",
+"name": "Yone"
+},
+"yorick": {
+"img": "Yorick",
+"name": "Yorick"
+},
+"yunara": {
+"img": "Yunara",
+"name": "Yunara"
+},
+"yuumi": {
+"img": "Yuumi",
+"name": "Yuumi"
+},
+"zaahen": {
+"img": "Zaahen",
+"name": "Zaahen"
+},
+"zac": {
+"img": "Zac",
+"name": "Zac"
+},
+"zed": {
+"img": "Zed",
+"name": "Zed"
+},
+"zeri": {
+"img": "Zeri",
+"name": "Zeri"
+},
+"ziggs": {
+"img": "Ziggs",
+"name": "Ziggs"
+},
+"zilean": {
+"img": "Zilean",
+"name": "Zilean"
+},
+"zoe": {
+"img": "Zoe",
+"name": "Zoe"
+},
+"zyra": {
+"img": "Zyra",
+"name": "Zyra"
+}
+}
+}

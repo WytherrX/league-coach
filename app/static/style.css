@@ -112,6 +112,32 @@ button,input,select,textarea{font:inherit;color:inherit}
 .seg a:hover{color:var(--ink);text-decoration:none}
 .seg a.on{background:var(--accent);color:#fff}
 
+/* ---------- Rôles : onglets, pastilles, cartes ---------- */
+.r-top{--rc:#E3A857}.r-jungle{--rc:#2BC5A4}.r-mid{--rc:#7AA0F0}.r-adc{--rc:#F07A8A}.r-support{--rc:#B98CF5}
+.rdot{width:8px;height:8px;border-radius:999px;display:inline-block;flex:none;background:var(--rc,var(--muted))}
+.rtabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:1px}
+.rtabs::-webkit-scrollbar{display:none}
+.rtabs a{display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);
+  color:var(--muted);font-weight:700;font-size:.86rem;white-space:nowrap}
+.rtabs a:hover{color:var(--ink);border-color:var(--line-2);text-decoration:none}
+.rtabs a.on{background:var(--surface-3);border-color:var(--rc,var(--accent));color:var(--ink);box-shadow:inset 0 0 0 1px var(--rc,var(--accent))}
+.rtabs .c{font-size:.74rem;color:var(--dim);font-variant-numeric:tabular-nums}
+.rtabs a.on .c{color:var(--muted)}
+.rbadge{display:inline-flex;align-items:center;gap:5px;font-size:.68rem;font-weight:800;letter-spacing:.06em;color:var(--muted);text-transform:uppercase;white-space:nowrap}
+.rolecards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.rcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:8px;
+  position:relative;overflow:hidden;color:var(--ink)}
+.rcard::before{content:"";position:absolute;inset:0 0 auto 0;height:3px;background:var(--rc)}
+.rcard:hover{border-color:var(--line-2);text-decoration:none}
+.rcard .rh{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.rcard .rn{font-weight:800;font-size:1rem;display:flex;align-items:center;gap:8px}
+.rcard .rs{display:flex;gap:12px;font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.rcard .rs b{color:var(--ink)}
+.rcard .rf{display:flex;flex-direction:column;gap:2px;padding-top:8px;border-top:1px solid var(--line)}
+.rcard .rf b{font-size:.95rem;line-height:1.25}
+.rbar{display:flex;height:8px;border-radius:4px;overflow:hidden;background:var(--surface-2);gap:2px}
+.rbar i{background:var(--rc)}
+
 /* ---------- Indicateurs ---------- */
 .kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
 .kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:2px;position:relative;overflow:hidden}

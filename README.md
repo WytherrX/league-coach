@@ -1,18 +1,19 @@
 # League Coach
 
-Application web auto-hébergée pour progresser en **jungle** et en **ADC** sur League of Legends. Elle importe tes parties classées depuis l'API Riot, repère tes points faibles, te fixe un objectif concret pour la partie suivante et t'aide à choisir le bon counter en draft selon ton propre champion pool.
+Application web auto-hébergée pour progresser sur League of Legends, **dans tous les rôles** : top, jungle, mid, ADC et support. Elle importe tes parties classées depuis l'API Riot, repère tes points faibles, te fixe un objectif concret pour la partie suivante et t'aide à choisir le bon counter en draft selon ton propre champion pool.
 
 Interface en français, multi-utilisateur, un seul conteneur Docker.
 
 ## Fonctionnalités
 
-- **Deux rôles : jungle et ADC.** Chaque compte suit un rôle, qui décide des indicateurs, des cibles, des exercices, du champion pool et des counters. Pour suivre les deux rôles avec le même Riot ID, ajoute-le deux fois.
-- **Import automatique des parties** via l'API officielle de Riot : KDA, participation aux kills, CS/min, control wards, morts avant 15 minutes, rang et LP gagnés ou perdus. En jungle, les objectifs perdus sans combat. En ADC, le CS à 10 minutes, l'écart d'or à 15 minutes face à l'ADC adverse et la part des dégâts de l'équipe. La saisie manuelle reste possible sans clé API.
+- **Tous les rôles, sur un seul compte.** Chaque partie est rangée dans le rôle réellement joué, d'après le poste attribué par Riot : un autofill en top est compté, analysé et noté comme une partie de top. Chaque rôle a ses indicateurs, ses cibles, ses exercices, son champion pool et ses counters.
+- **Tableau de bord par rôle** : un onglet « Tous » (LP, bilan, répartition des rôles, objectif de chaque rôle) et un onglet par rôle joué.
+- **Import automatique des parties** via l'API officielle de Riot : KDA, participation aux kills, CS/min, control wards, morts avant 15 minutes, rang et LP gagnés ou perdus. En jungle, les objectifs perdus sans combat. En top, mid et ADC, le CS à 10 minutes, l'écart d'or à 15 minutes face à l'adversaire direct et la part des dégâts de l'équipe. En support, le score de vision par minute. La saisie manuelle reste possible sans clé API.
 - **Points faibles** : indicateurs calculés sur les 10, 20 ou 50 dernières parties et comparés à des cibles de niveau Diamant.
-- **Objectif par partie** : un exercice concret sur ton point faible principal. Après la partie, tu notes si tu l'as tenu et une leçon.
+- **Objectif par partie, un par rôle** : un exercice concret sur ton point faible principal dans ce rôle. Après la partie, tu notes si tu l'as tenu et une leçon ; le formulaire propose les exercices du rôle joué.
 - **Évolution des LP** : courbe sur les dernières parties, avec les divisions en fond et le détail de chaque partie au survol.
-- **Champion pool** : ton aisance de 1 à 5 sur chaque champion. Le nombre de parties et le bilan viennent de tes parties enregistrées.
-- **Counters** : face au jungler ou à l'ADC adverse, tes champions sont classés par un score combinant le winrate du matchup (moyenne d'op.gg, u.gg et lolalytics), ton bilan personnel sur ce matchup et ton aisance. Bans conseillés et meilleurs counters hors de ton pool.
+- **Un champion pool par rôle** : ton aisance de 1 à 5 sur chaque champion. Le nombre de parties et le bilan viennent de tes parties dans ce rôle.
+- **Counters** : face à ton adversaire direct, tes champions sont classés par un score combinant le winrate du matchup (moyenne d'op.gg, u.gg et lolalytics), ton bilan personnel sur ce matchup et ton aisance. Bans conseillés et meilleurs counters hors de ton pool.
 - **Plusieurs comptes LoL par utilisateur**, plusieurs utilisateurs par instance. Le premier inscrit devient administrateur.
 
 Stack : Python 3.12, FastAPI, Jinja2, SQLite. Pages rendues côté serveur, sans framework JavaScript.
@@ -87,7 +88,7 @@ source .env && curl -s -H "X-Riot-Token: $RIOT_API_KEY" "https://europe.api.riot
 
 Une réponse contenant `"puuid"` confirme que la clé fonctionne.
 
-L'appli synchronise chaque compte toutes les `SYNC_MINUTES` minutes et à l'ajout d'un compte, où elle importe les 50 dernières parties classées. Le bouton **Synchroniser** des pages Parties et Comptes lance aussi une synchronisation. Seules les parties **classées solo/duo jouées dans le rôle du compte** sont importées : poste `JUNGLE` ou `BOTTOM` selon Riot. Les remakes sont ignorés.
+L'appli synchronise chaque compte toutes les `SYNC_MINUTES` minutes et à l'ajout d'un compte, où elle importe les 50 dernières parties classées. Le bouton **Synchroniser** des pages Parties et Comptes lance aussi une synchronisation. Toutes les parties **classées solo/duo** sont importées, quel que soit le rôle : le poste attribué par Riot (`TOP`, `JUNGLE`, `MIDDLE`, `BOTTOM`, `UTILITY`) décide du rôle de la partie, et l'adversaire direct est le joueur du même poste en face. Les remakes sont ignorés.
 
 | Donnée | Calcul |
 | --- | --- |
@@ -95,9 +96,10 @@ L'appli synchronise chaque compte toutes les `SYNC_MINUTES` minutes et à l'ajou
 | Participation aux kills, CS/min, control wards | Statistiques de fin de partie |
 | Morts avant 15 min | Chronologie de la partie |
 | Objectifs perdus sans combat | Dragon, vague de larves, héraut, Baron ou Atakhan pris par l'adversaire, sans kill à moins de 3 000 unités du pit entre 30 s avant et 15 s après, et sans allié près du pit aux relevés de positions qui encadrent la prise (Riot en fournit un par minute). C'est une estimation. |
-| CS à 10 min (ADC) | Relevé de la chronologie à 10:00 : sbires et monstres tués |
-| Écart d'or à 15 min (ADC) | Relevé de la chronologie à 15:00 : ton or total moins celui de l'adversaire du même poste |
-| Part des dégâts (ADC) | `teamDamagePercentage` de Riot, ou tes dégâts aux champions divisés par ceux de ton équipe |
+| CS à 10 min (top, mid, ADC) | Relevé de la chronologie à 10:00 : sbires et monstres tués |
+| Écart d'or à 15 min (top, mid, ADC) | Relevé de la chronologie à 15:00 : ton or total moins celui de l'adversaire du même poste |
+| Part des dégâts (mid, ADC) | `teamDamagePercentage` de Riot, ou tes dégâts aux champions divisés par ceux de ton équipe |
+| Vision par minute (support) | `visionScore` de fin de partie divisé par la durée |
 | Rang et LP | League-V4, relevé à chaque synchronisation |
 | LP gagnés ou perdus | Écart entre deux relevés, attribué à une partie seulement si une seule partie classée a été jouée entre les deux. Promotions et rétrogradations comprises. |
 
@@ -107,20 +109,21 @@ Une partie déjà saisie à la main n'est pas dupliquée : l'import la complète
 
 ## Indicateurs et cibles par rôle
 
-| Indicateur | Jungle | ADC |
-| --- | --- | --- |
-| CS par minute | ≥ 6,5 | ≥ 8 |
-| CS à 10 min | — | ≥ 80 |
-| Écart d'or à 15 min | — | ≥ 0 |
-| Morts par partie | ≤ 4,5 | ≤ 4 |
-| Morts avant 15 min | ≤ 1,5 | ≤ 1 |
-| Participation aux kills | ≥ 60 % | ≥ 50 % |
-| Part des dégâts de l'équipe | — | ≥ 27 % |
-| Control wards | ≥ 2 | ≥ 1,5 |
-| Objectifs perdus sans combat | ≤ 1 | — |
-| Parties sur ton pool | ≥ 80 % | ≥ 80 % |
+| Indicateur | Top | Jungle | Mid | ADC | Support |
+| --- | --- | --- | --- | --- | --- |
+| CS par minute | ≥ 7,5 | ≥ 6,5 | ≥ 7,5 | ≥ 8 | — |
+| CS à 10 min | ≥ 75 | — | ≥ 75 | ≥ 80 | — |
+| Écart d'or à 15 min | ≥ 0 | — | ≥ 0 | ≥ 0 | — |
+| Morts par partie | ≤ 4,5 | ≤ 4,5 | ≤ 4,5 | ≤ 4 | ≤ 5 |
+| Morts avant 15 min | ≤ 1 | ≤ 1,5 | ≤ 1 | ≤ 1 | ≤ 1,5 |
+| Participation aux kills | ≥ 45 % | ≥ 60 % | ≥ 55 % | ≥ 50 % | ≥ 60 % |
+| Part des dégâts de l'équipe | — | — | ≥ 25 % | ≥ 27 % | — |
+| Score de vision par minute | — | — | — | — | ≥ 2,2 |
+| Control wards | ≥ 1,5 | ≥ 2 | ≥ 1,5 | ≥ 1,5 | ≥ 3 |
+| Objectifs perdus sans combat | — | ≤ 1 | — | — | — |
+| Parties sur ton pool | ≥ 80 % | ≥ 80 % | ≥ 80 % | ≥ 80 % | ≥ 80 % |
 
-Les cibles, les exercices et les plans de jeu sont dans [`app/analysis.py`](app/analysis.py) (`JUNGLE` et `ADC`). Ajouter un rôle revient à y décrire un dictionnaire de plus et à fournir son fichier de matchups.
+Les cibles, les exercices et les plans de jeu sont dans [`app/analysis.py`](app/analysis.py) (`TOP`, `JUNGLE`, `MID`, `ADC`, `SUPPORT`).
 
 ## Données de counters
 
@@ -128,10 +131,13 @@ Les winrates de matchups sont dans `app/data`, un fichier par rôle, collectés 
 
 | Fichier | Champions | op.gg | u.gg | lolalytics |
 | --- | --- | --- | --- | --- |
+| [`matchups-top.json`](app/data/matchups-top.json) (top, toplaner contre toplaner) | 52 | 2 476 | 2 552 | 2 576 |
 | [`matchups.json`](app/data/matchups.json) (jungle, jungler contre jungler) | 59 | 3 242 | 3 422 | 2 837 |
+| [`matchups-mid.json`](app/data/matchups-mid.json) (mid, midlaner contre midlaner) | 42 | 1 688 | 1 708 | 1 716 |
 | [`matchups-adc.json`](app/data/matchups-adc.json) (ADC, ADC contre ADC en bot) | 28 | 756 | 756 | 754 |
+| [`matchups-support.json`](app/data/matchups-support.json) (support, support contre support) | 42 | 1 594 | 1 652 | 1 672 |
 
-op.gg et u.gg donnent des parties et des victoires brutes. lolalytics masque les matchups sous 100 parties, et ses winrates surestiment d'environ 1,7 point le champion de la page, dans les deux rôles : la moyenne des deux sens de lecture corrige ce biais. Les ADC retenus sont ceux qu'u.gg compte au moins 800 fois face à Jinx en bot, ce qui inclut les picks bot hors ADC classiques (Ziggs, Veigar, Yasuo…).
+op.gg et u.gg donnent des parties et des victoires brutes. lolalytics masque les matchups sous 100 parties, et ses winrates surestiment d'environ 1,7 point le champion de la page, dans tous les rôles : la moyenne des deux sens de lecture corrige ce biais. Les ADC retenus sont ceux qu'u.gg compte au moins 800 fois face à Jinx en bot, ce qui inclut les picks bot hors ADC classiques (Ziggs, Veigar, Yasuo…). En top, mid et support, ce sont les champions joués au moins 10 000 fois dans le rôle sur u.gg. Une fois réunies, les trois sources sont très proches : corrélation de 0,91 à 0,96 entre elles, écart moyen de 0,6 à 1 point par matchup.
 
 Pour chaque matchup, l'appli fait la moyenne des sources qui ont au moins 100 parties. Elle indique « sources d'accord » quand l'écart entre elles reste sous 3 points.
 
@@ -168,7 +174,7 @@ Pour signaler une faille, ouvre une issue sur GitHub sans détails exploitables 
 cd league-coach && git pull && docker compose up -d --build
 ```
 
-Le schéma de la base est migré automatiquement au démarrage. `.env` et la base ne sont pas versionnés : une mise à jour ne les touche jamais. Pour revenir à une version précédente : `git log --oneline`, puis `git checkout <commit>` et `docker compose up -d --build`.
+Le schéma de la base est migré automatiquement au démarrage. Une base d'une version qui suivait un seul rôle par compte est convertie : les comptes ajoutés deux fois pour deux rôles sont fusionnés (parties, pools, objectifs), et la synchronisation suivante importe les parties jouées sur les autres rôles parmi les 50 dernières, sans réimporter celles que tu avais supprimées. `.env` et la base ne sont pas versionnés : une mise à jour ne les touche jamais. Pour revenir à une version précédente : `git log --oneline`, puis `git checkout <commit>` et `docker compose up -d --build`.
 
 ## Sauvegarde
 
