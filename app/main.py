@@ -5,11 +5,14 @@ import logging
 import math
 import os
 import secrets
+import shutil
+import threading
 import time
 import urllib.parse
+import urllib.request
 
 from fastapi import FastAPI, File, Form, Request, UploadFile
-from fastapi.responses import PlainTextResponse, RedirectResponse
+from fastapi.responses import FileResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
@@ -43,6 +46,7 @@ def all_champions():
 
 
 CHAMPIONS = all_champions()
+ICONS = {c["img"] for c in CHAMPIONS.values()}
 sync.start()
 log = logging.getLogger("uvicorn.error")
 
@@ -54,7 +58,7 @@ SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "same-origin",
     "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
-    "Content-Security-Policy": "default-src 'self'; img-src 'self' data: https://ddragon.leagueoflegends.com; "
+    "Content-Security-Policy": "default-src 'self'; img-src 'self' data:; "
                                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; "
                                "script-src 'self' 'unsafe-inline'; frame-ancestors 'none'; form-action 'self'; base-uri 'self'; object-src 'none'",
 }
@@ -136,7 +140,52 @@ def champ_name(key):
 def champ_icon(key):
     # Champion absent des données (joué hors méta) : le nom Riot en minuscules, première lettre en majuscule, suffit souvent
     img = CHAMPIONS.get(key, {}).get("img") or (key.capitalize() if key and key.isalpha() else None)
-    return f"https://ddragon.leagueoflegends.com/cdn/{DDRAGON['ddragon']}/img/champion/{img}.png" if img else ""
+    return f"/icons/{DDRAGON['ddragon']}/{img}.png" if img else ""
+
+
+# ---------- Icônes des champions ----------
+# Servies par l'appli plutôt que chargées par le navigateur depuis le Data Dragon de Riot : elles s'affichent même
+# derrière un proxy d'entreprise qui bloque les sites de jeux. Téléchargées une fois, gardées dans le volume de données.
+
+ICON_DIR = os.path.join(analysis.VOLUME_DIR, "icons")
+ICON_FAILS = {}                  # icône introuvable chez Riot -> heure de l'échec, pour ne pas réessayer en boucle
+ICON_LOCK = threading.Lock()
+
+
+def fetch_icon(version, img, path):
+    url = f"https://ddragon.leagueoflegends.com/cdn/{version}/img/champion/{img}.png"
+    req = urllib.request.Request(url, headers={"User-Agent": "league-coach"})
+    with urllib.request.urlopen(req, timeout=10) as r:
+        data = r.read(500_001)
+    if len(data) > 500_000 or not data.startswith(b"\x89PNG\r\n\x1a\n"):
+        raise ValueError("réponse inattendue")
+    with ICON_LOCK:
+        if not os.path.isdir(os.path.dirname(path)):   # nouvelle version : on retire les icônes de l'ancienne
+            shutil.rmtree(ICON_DIR, ignore_errors=True)
+            os.makedirs(os.path.dirname(path))
+        tmp = f"{path}.{threading.get_ident()}.tmp"
+        with open(tmp, "wb") as f:
+            f.write(data)
+        os.replace(tmp, path)
+
+
+@app.get("/icons/{version}/{img}.png")
+def icon(version: str, img: str):
+    # seulement les champions connus, dans la version des données : l'appli ne sert pas de proxy ouvert vers Internet
+    if version != DDRAGON["ddragon"] or img not in ICONS:
+        return PlainTextResponse("Icône inconnue", status_code=404)
+    path = os.path.join(ICON_DIR, version, img + ".png")
+    if not os.path.exists(path):
+        if time.monotonic() - ICON_FAILS.get(img, -1e9) < 600:
+            return PlainTextResponse("Icône indisponible", status_code=502)
+        try:
+            fetch_icon(version, img, path)
+        except Exception as e:
+            ICON_FAILS[img] = time.monotonic()
+            log.warning("Icône %s indisponible sur le Data Dragon de Riot : %s", img, e)
+            return PlainTextResponse("Icône indisponible", status_code=502)
+    # l'adresse contient la version : le navigateur peut garder l'icône un an
+    return FileResponse(path, media_type="image/png", headers={"Cache-Control": "public, max-age=31536000, immutable"})
 
 
 def champ_sort(keys):
@@ -847,6 +896,7 @@ async def admin_matchups(request: Request, file: UploadFile = File(...), role: s
         json.dump(data, f, ensure_ascii=False)
     MU[role] = analysis.load_matchups(role)
     CHAMPIONS = all_champions()
+    ICONS.update(c["img"] for c in CHAMPIONS.values())
     flash(request, f"Matchups {analysis.ROLES[role]['label']} mis à jour : patch {data.get('patch', '?')}, {len(data['champions'])} champions, {len(sources)} source(s).")
     return go("/admin")
 

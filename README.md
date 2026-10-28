@@ -178,7 +178,7 @@ Le schéma de la base est migré automatiquement au démarrage. Une base d'une v
 
 ## Sauvegarde
 
-Les données (base SQLite et matchups importés) sont dans le volume Docker `league-coach_league-coach-data`.
+Les données (base SQLite, matchups importés et icônes en cache) sont dans le volume Docker `league-coach_league-coach-data`.
 
 ```bash
 docker compose exec league-coach python -c "import sqlite3; sqlite3.connect('/data/league-coach.db').backup(sqlite3.connect('/data/backup.db'))"
@@ -211,4 +211,4 @@ Code distribué sous licence [MIT](LICENSE) : tu peux l'utiliser, le modifier et
 
 League Coach n'est ni approuvé ni soutenu par Riot Games et ne reflète pas les opinions de Riot Games ni de quiconque officiellement impliqué dans la production ou la gestion des propriétés de Riot Games. Riot Games et toutes les propriétés associées sont des marques commerciales ou des marques déposées de Riot Games, Inc.
 
-Les winrates de matchups proviennent d'op.gg, u.gg et lolalytics. Les icônes de champions sont servies par le Data Dragon de Riot.
+Les winrates de matchups proviennent d'op.gg, u.gg et lolalytics. Les icônes de champions viennent du Data Dragon de Riot : le serveur les télécharge une fois (environ 4 Mo) et les sert lui-même, ce qui les affiche aussi derrière un proxy d'entreprise qui bloque les sites de jeux.
