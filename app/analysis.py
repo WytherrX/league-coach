@@ -338,20 +338,14 @@ def role_drills(role):
 
 
 COMFORT = {5: "Main", 4: "Très à l'aise", 3: "À l'aise", 2: "Correct", 1: "En apprentissage"}
-COMFORT_BONUS = {5: 3.0, 4: 1.5, 3: 0.0, 2: -2.0, 1: -4.0}  # points de winrate
-
-
-def games_bonus(games):
-    """Bonus d'expérience selon les parties enregistrées : jamais négatif, pour ne pas pénaliser un main tout juste saisi."""
-    if games >= 50:
-        return 1.0
-    if games >= 20:
-        return 0.5
-    return 0.0
+# Points de winrate ajoutés au matchup selon ton aisance. Volontairement petits : face à un même adversaire, deux
+# champions du même rôle ont en général 2 à 3 points d'écart de matchup, et un meilleur matchup doit l'emporter
+# sur un cran d'aisance. Ton expérience réelle compte déjà via ton bilan personnel sur le matchup.
+COMFORT_BONUS = {5: 1.0, 4: 0.5, 3: 0.0, 2: -0.7, 1: -1.3}
 
 
 def mastery_bonus(entry):
-    return COMFORT_BONUS.get(entry["comfort"], 0.0) + games_bonus(entry["games"])
+    return COMFORT_BONUS.get(entry["comfort"], 0.0)
 
 
 MIN_GAMES = 100  # en dessous, une source n'est pas prise en compte pour un matchup

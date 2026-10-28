@@ -41,14 +41,10 @@
         <summary>Comment le bonus de maîtrise est calculé</summary>
         <div class="cols" style="margin-top:10px">
           <div class="tbl"><table><thead><tr><th>Aisance</th><th class="n">Bonus</th></tr></thead><tbody>
-            <tr><td>5/5 · Main</td><td class="n">+3 pts</td></tr><tr><td>4/5 · Très à l'aise</td><td class="n">+1,5 pt</td></tr>
-            <tr><td>3/5 · À l'aise</td><td class="n">0</td></tr><tr><td>2/5 · Correct</td><td class="n">−2 pts</td></tr>
-            <tr><td>1/5 · En apprentissage</td><td class="n">−4 pts</td></tr></tbody></table></div>
-          <div class="tbl"><table><thead><tr><th>Parties enregistrées</th><th class="n">Bonus</th></tr></thead><tbody>
-            <tr><td>Moins de 20</td><td class="n">0</td></tr><tr><td>20 à 49</td><td class="n">+0,5 pt</td></tr>
-            <tr><td>50 et plus</td><td class="n">+1 pt</td></tr></tbody></table></div>
+            {% for lvl in [5, 4, 3, 2, 1] %}<tr><td>{{ lvl }}/5 · {{ COMFORT[lvl] }}</td><td class="n">{{ COMFORT_BONUS[lvl]|pts }}</td></tr>{% endfor %}
+          </tbody></table></div>
+          <p class="muted small">Le bonus s'ajoute au winrate du matchup sur la page Counters. Il reste volontairement petit : face à un même adversaire, deux champions ont en général 2 à 3 points d'écart de matchup, donc un matchup nettement meilleur passe avant ton aisance, qui départage surtout les matchups proches. Ton expérience réelle compte aussi : ton bilan personnel sur le matchup corrige le winrate des sites, d'autant plus que tu as de parties dessus (voir <a href="/games?role={{ role }}">Parties</a>).</p>
         </div>
-        <p class="muted small" style="margin-top:8px">Le bonus s'ajoute au winrate du matchup sur la page Counters. Le nombre de parties est celui que tu as jouées sur ce champion dans ce rôle (<a href="/games?role={{ role }}">Parties</a>) : il ne pénalise jamais, il récompense seulement l'expérience accumulée. Un main à 5/5 avec 50 parties gagne 8 points sur un champion en apprentissage, l'équivalent d'un matchup nettement favorable.</p>
       </details>
     </div>
   </section>

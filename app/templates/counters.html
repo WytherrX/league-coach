@@ -69,7 +69,7 @@
         <td><span class="pill {{ 'great' if verdict == 'Prends' else 'acc' if verdict == 'Jouable' else 'bad' }}">{{ verdict }}</span></td>
       </tr>{% endfor %}</tbody>
   </table></div>
-  <div class="body"><p class="dim small">Moyenne des sources qui ont au moins 100 parties sur le matchup ; « sources d'accord » : moins de 3 points d'écart. Score = moyenne ajustée par ton propre bilan sur le matchup, plus ton bonus de maîtrise (aisance et parties enregistrées, voir <a href="/pool?role={{ role }}">Pool</a>).</p></div>
+  <div class="body"><p class="dim small">Moyenne des sources qui ont au moins 100 parties sur le matchup ; « sources d'accord » : moins de 3 points d'écart. Score = moyenne ajustée par ton propre bilan sur le matchup, plus un petit bonus d'aisance qui départage les matchups proches (de −1,3 à +1 point, voir <a href="/pool?role={{ role }}">Pool</a>).</p></div>
   {% else %}
   <div class="body"><div class="empty">Pas de données de matchup pour ton pool contre {{ champ_name(enemy) }}.</div></div>
   {% endif %}

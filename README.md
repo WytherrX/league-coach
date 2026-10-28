@@ -13,7 +13,7 @@ Interface en français, multi-utilisateur, un seul conteneur Docker.
 - **Objectif par partie, un par rôle** : un exercice concret sur ton point faible principal dans ce rôle. Après la partie, tu notes si tu l'as tenu et une leçon ; le formulaire propose les exercices du rôle joué.
 - **Évolution des LP** : courbe sur les dernières parties, avec les divisions en fond et le détail de chaque partie au survol.
 - **Un champion pool par rôle** : ton aisance de 1 à 5 sur chaque champion. Le nombre de parties et le bilan viennent de tes parties dans ce rôle.
-- **Counters** : face à ton adversaire direct, tes champions sont classés par un score combinant le winrate du matchup (moyenne d'op.gg, u.gg et lolalytics), ton bilan personnel sur ce matchup et ton aisance. Bans conseillés et meilleurs counters hors de ton pool.
+- **Counters** : face à ton adversaire direct, tes champions sont classés par un score combinant le winrate du matchup (moyenne d'op.gg, u.gg et lolalytics), ton bilan personnel sur ce matchup et ton aisance. L'aisance pèse peu (de −1,3 à +1 point) : elle départage les matchups proches sans faire oublier un mauvais matchup. Bans conseillés et meilleurs counters hors de ton pool.
 - **Plusieurs comptes LoL par utilisateur**, plusieurs utilisateurs par instance. Le premier inscrit devient administrateur.
 
 Stack : Python 3.12, FastAPI, Jinja2, SQLite. Pages rendues côté serveur, sans framework JavaScript.

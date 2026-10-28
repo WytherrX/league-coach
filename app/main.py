@@ -238,7 +238,7 @@ templates.env.filters["fr"] = lambda v, d=1: f"{v:.{d}f}".replace(".", ",")
 # Version du CSS dans l'URL : un navigateur ou un proxy ne peut pas garder une ancienne feuille de style en cache
 with open(os.path.join(HERE, "static", "style.css"), "rb") as f:
     STATIC_V = hashlib.sha1(f.read()).hexdigest()[:10]
-templates.env.globals.update(STATIC_V=STATIC_V, COMFORT=analysis.COMFORT, mastery_bonus=analysis.mastery_bonus, champ_name=champ_name, champ_icon=champ_icon, rank_label=analysis.rank_label,
+templates.env.globals.update(STATIC_V=STATIC_V, COMFORT=analysis.COMFORT, COMFORT_BONUS=analysis.COMFORT_BONUS, mastery_bonus=analysis.mastery_bonus, champ_name=champ_name, champ_icon=champ_icon, rank_label=analysis.rank_label,
                              RANKS=analysis.RANKS, ROLES=analysis.ROLES, DRILL_INDEX=analysis.DRILL_INDEX, STAT_LABELS=analysis.STAT_LABELS,
                              tier_class=tier_class, wr_class=wr_class, kda=kda, RIOT=bool(riot.API_KEY), SYNC_MINUTES=sync.INTERVAL)
 
